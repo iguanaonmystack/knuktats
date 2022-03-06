@@ -1,0 +1,69 @@
+<!DOCTYPE HTML>
+
+<html>
+<head>
+    <script type="text/javascript">
+        var timer_id = null;
+
+        var hide_tats = function(text) {
+            timer_id = null;
+            var maindiv = document.getElementById('main');
+            maindiv.replaceChildren();
+        };
+
+        var show_tats = function(text) {
+            var maindiv = document.getElementById('main');
+
+            var img = document.createElement('img');
+            img.src = '/knux?t=' + encodeURI(text);
+            img.style.width = '100%';
+            img.style.height = '100%';
+            maindiv.replaceChildren(img);
+            if (timer_id != null) {
+                window.clearTimeout(timer_id);
+            }
+            timer_id = window.setTimeout(hide_tats, 3000);
+        };
+
+        var websocket_func = function() {
+            if ("WebSocket" in window) {
+                // Let us open a web socket
+                var ws = new WebSocket("ws://localhost:9000/echo1");
+                 
+                ws.onopen = function() {
+                   
+                    // Web Socket is connected, send data using send()
+                    msg = "message to send";
+                    console.log("> " + msg);
+                    ws.send(msg);
+                };
+                 
+                ws.onmessage = function (evt) { 
+                    var received_msg = evt.data;
+                    console.log("< " + received_msg);
+                    var prefix = "KNUK TATS: ";
+                    if (received_msg.startsWith(prefix)) {
+                        var tat_text = received_msg.substring(prefix.length);
+                        show_tats(tat_text);
+                    }
+                };
+                 
+                ws.onclose = function() { 
+                    console.log("Connection closed");
+                };
+            } else {
+                // The browser doesn't support WebSocket
+                console.log("No websocket support");
+            }
+        };
+
+        window.onload = (event) => {
+            console.log('page is fully loaded');
+            websocket_func()
+        };
+    </script>
+</head>
+<body>
+    <div id="main"></div> 
+</body>
+</html>
