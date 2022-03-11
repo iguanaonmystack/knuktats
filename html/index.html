@@ -4,6 +4,7 @@
 <head>
     <script type="text/javascript">
         var timer_id = null;
+        var punch = new Audio('streetfighter-punch.wav');
 
         var hide_tats = function(text) {
             timer_id = null;
@@ -23,6 +24,7 @@
                 window.clearTimeout(timer_id);
             }
             timer_id = window.setTimeout(hide_tats, 3000);
+            punch.play();
         };
 
         var websocket_func = function() {
