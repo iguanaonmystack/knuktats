@@ -19,6 +19,7 @@ from twisted.words.protocols import irc
 from twisted.internet import protocol, ssl
 
 import knuxtats
+import config_local
 
 # ------ WS ----------
 
@@ -90,8 +91,8 @@ class KnuxPreparedWebSocketServerFactory(KnuxWebSocketServerFactory):
 
 
 class KnuxIRCBot(irc.IRCClient):
-    nickname = 'kapellosaur' # nickname
-    password = ''
+    nickname = config_local.irc_username
+    password = config_local.irc_password
     
     def connectionMade(self):
         irc.IRCClient.connectionMade(self)
