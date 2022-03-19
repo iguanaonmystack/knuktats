@@ -21,6 +21,23 @@ from twisted.internet import protocol, ssl
 import knuxtats
 import config_local
 
+def should_tat(msg):
+    """Return True if words are suitable (and desirable) for knuk tats.
+
+    msg - a line of chat (str)
+    """
+    words = msg.split(" ")
+    if len(words) != 2:
+        return False
+    if len(words[0]) != 4 or len(words[1]) != 4:
+        return False
+    # Can't just check word.isupper() because '1234'.isupper() is false
+    for letter in words[0] + words[1]:
+        if letter.islower():
+            return False
+    return True
+
+
 # ------ WS ----------
 
 class BroadcastServerProtocol(WebSocketServerProtocol):
@@ -125,8 +142,7 @@ class KnuxIRCBot(irc.IRCClient):
             return
 
         # Otherwise check to see if it is a message is KNUK TATS
-        words = msg.split(" ")
-        if len(words) == 2 and len(words[0]) == 4 and len(words[1]) == 4:
+        if should_tat(msg):
             self.logger.debug("<%s> %s" % (self.nickname, msg))
             #self.msg(channel, "KNUK TATS")
             self.factory.knuxfactory.broadcast("KNUK TATS: " + msg)
