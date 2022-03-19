@@ -126,10 +126,12 @@ class KnuxIRCBot(irc.IRCClient):
 
         # Otherwise check to see if it is a message is KNUK TATS
         words = msg.split(" ")
-        if len(words) == 2 and len(words[0]) == 4 and len(words[1]) == 4:
-            self.logger.debug("<%s> %s" % (self.nickname, msg))
-            #self.msg(channel, "KNUK TATS")
-            self.factory.knuxfactory.broadcast("KNUK TATS: " + msg)
+        if all([len(words) == 2, len(words[0]) == 4, len(words[1]) == 4]):
+            cap_check = [x for x in msg if any([x.isupper(), not x.isalpha()])]
+            if len(cap_check) == len(msg):
+                self.logger.debug("<%s> %s" % (self.nickname, msg))
+                #self.msg(channel, "KNUK TATS")
+                self.factory.knuxfactory.broadcast("KNUK TATS: " + msg)
 
     def alterCollidedNick(self, nickname):
         return nickname+'_'
