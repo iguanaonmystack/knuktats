@@ -19,6 +19,7 @@ from twisted.words.protocols import irc
 from twisted.internet import protocol, ssl
 
 import knuxtats
+import button
 import config_local
 
 def should_tat(msg):
@@ -194,7 +195,7 @@ class KnuxIRCBotFactory(protocol.ClientFactory):
 
 # ------ Knuk tats generator resource ----------
 
-class ClockPage(Resource):
+class KnukTatsPage(Resource):
     isLeaf = True
     def render_GET(self, request):
         request.setHeader("Content-Type", "image/png")
@@ -212,7 +213,7 @@ if __name__ == '__main__':
     knuxfactory.protocol = BroadcastServerProtocol
     knuxfactory.startFactory()  # when wrapped as a Twisted Web resource, start the underlying factory manually
     resource1 = WebSocketResource(knuxfactory)
-    resource2 = ClockPage()
+    resource2 = KnukTatsPage()
 
     ircfactory = KnuxIRCBotFactory(knuxfactory)
     ircfactory.startFactory()
@@ -227,7 +228,11 @@ if __name__ == '__main__':
 
     # both under one Twisted Web Site
     site = Site(root)
+
+    # Set up the reactor
     reactor.listenTCP(9000, site)
     reactor.connectSSL('irc.chat.twitch.tv', 6697, ircfactory, ssl.ClientContextFactory())
+    button = button.setup(reactor, knuxfactory)
+    print(button)
 
     reactor.run()
