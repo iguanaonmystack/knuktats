@@ -142,6 +142,10 @@ class KnuxIRCBot(irc.IRCClient):
         if channel == self.nickname:
             return
 
+        #if msg == '!button':
+        #    # only here for debug
+        #    self.factory.knuxfactory.broadcast("BUTTON: button")
+
         # Otherwise check to see if it is a message is KNUK TATS
         if should_tat(msg):
             self.logger.debug("<%s> %s" % (self.nickname, msg))
@@ -233,6 +237,5 @@ if __name__ == '__main__':
     reactor.listenTCP(9000, site)
     reactor.connectSSL('irc.chat.twitch.tv', 6697, ircfactory, ssl.ClientContextFactory())
     button = button.setup(reactor, knuxfactory)
-    print(button)
 
     reactor.run()

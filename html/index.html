@@ -18,13 +18,34 @@
             var img = document.createElement('img');
             img.src = '/knux?t=' + encodeURI(text);
             img.style.width = '100%';
-            img.style.height = '100%';
             maindiv.replaceChildren(img);
             if (timer_id != null) {
                 window.clearTimeout(timer_id);
             }
             timer_id = window.setTimeout(hide_tats, 3000);
             punch.play();
+        };
+
+        var hide_button = function(text) {
+            timer_id = null;
+            var maindiv = document.getElementById('main');
+            maindiv.replaceChildren();
+        };
+
+        var show_button = function(text) {
+            var maindiv = document.getElementById('main');
+
+            var p = document.createElement('p');
+            p.innerText = text;
+            p.style.textAlign = 'center';
+            p.style.fontFamily = 'sans';
+            p.style.color = '#DDD';
+            p.style.fontSize = '400%';
+            maindiv.replaceChildren(p);
+            if (timer_id != null) {
+                window.clearTimeout(timer_id);
+            }
+            timer_id = window.setTimeout(hide_button, 3000);
         };
 
         var websocket_func = function() {
@@ -45,8 +66,13 @@
                     console.log("< " + received_msg);
                     var prefix = "KNUK TATS: ";
                     if (received_msg.startsWith(prefix)) {
-                        var tat_text = received_msg.substring(prefix.length);
-                        show_tats(tat_text);
+                        var text = received_msg.substring(prefix.length);
+                        show_tats(text);
+                    }
+                    prefix = "BUTTON: ";
+                    if (received_msg.startsWith(prefix)) {
+                        var text = received_msg.substring(prefix.length);
+                        show_button(text);
                     }
                 };
                  
@@ -64,8 +90,26 @@
             websocket_func()
         };
     </script>
+    <style>
+        html, body {
+            margin:0px;
+            height:100%;
+        }
+
+        #main {
+            display: flex;
+            justify-content: center;
+            align-content: center;
+            flex-direction: column;
+            position: absolute;
+            top: 0px;
+            right: 0px;
+            bottom: 0px;
+            left: 0px;
+        }
+    </style>
 </head>
 <body>
-    <div id="main"></div> 
+    <div id="main"></div>
 </body>
 </html>
