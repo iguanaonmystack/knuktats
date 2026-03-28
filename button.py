@@ -1,5 +1,5 @@
 """Twisted stuff for Button serial"""
-
+import subprocess
 from twisted.internet.serialport import SerialPort
 from twisted.protocols.basic import LineReceiver
 from twisted.internet.protocol import Protocol
@@ -22,6 +22,8 @@ class ButtonProtocol(LineReceiver):
         print('line received', line)
         self.knuxfactory.broadcast('BUTTON: button')
         self.flash()
+        subprocess.run(['xdotool', 'key', 'ctrl+z'])
+        #subprocess.run(['xdotool', 'key', 'e'])
 
     # CUSTOM FUNCTIONS
 

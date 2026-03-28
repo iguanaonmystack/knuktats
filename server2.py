@@ -22,6 +22,47 @@ import knuxtats
 import button
 import config_local
 
+
+def parsemsg(s):
+    """Modification of twisted.words.protocols.irc.parsemsg to account for (enough) IRCv3.
+
+    Breaks a message from an IRC server into its prefix, command, and
+    arguments.
+
+    @param s: The message to break.
+    @type s: L{bytes}
+
+    @return: A tuple of (prefix, command, args).
+    @rtype: L{tuple}
+    """
+    prefix = ""
+    trailing = []
+    tags = []
+    if not s:
+        raise irc.IRCBadMessage("Empty line.")
+
+    if s[0:1] == '@':
+        # IRCv3 tags
+        tags, s = s[1:].split(' ', 1)
+        if tags:
+            tags = list(tags.split(';'))
+        else:
+            tags = []
+        tags = [tuple(t.split('=', 1)) for t in tags]
+        # TODO - unescape values, maybe parse key
+        # https://ircv3.net/specs/extensions/message-tags#format
+    if s[0:1] == ":":
+        prefix, s = s[1:].split(" ", 1)
+    if s.find(" :") != -1:
+        s, trailing = s.split(" :", 1)
+        args = s.split()
+        args.append(trailing)
+    else:
+        args = s.split()
+    command = args.pop(0)
+    return prefix, command, args, tags
+
+
 def should_tat(msg):
     """Return True if words are suitable (and desirable) for knuk tats.
 
@@ -32,6 +73,7 @@ def should_tat(msg):
         return False
     if len(words[0]) != 4 or len(words[1]) != 4:
         return False
+    return True # temporary thing to generate some accidental tats
     # Can't just check word.isupper() because '1234'.isupper() is false
     for letter in words[0] + words[1]:
         if letter.islower():
@@ -127,6 +169,7 @@ class KnuxIRCBot(irc.IRCClient):
 
     def signedOn(self):
         """Called when bot has succesfully signed on to server."""
+        self.sendLine("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
         self.join(self.factory.channel)
 
     def joined(self, channel):
@@ -177,6 +220,37 @@ class KnuxIRCBot(irc.IRCClient):
         effort to create an unused related name for subsequent registration.
         """
         return nickname + '^'
+
+    def irc_unknown(self, prefix, command, params):
+        # We actually just want to route all the unknown ones to commands too.
+        # OBVIOUSLY not safe but let's assume twitch is well behaved and we're
+        # not being MITM'd.
+        print('unknown', prefix, command, params, self.tags)
+        if hasattr(self, 'twitch_' + command):
+            getattr(self, 'twitch_' + command)(prefix, params, self.tags)
+    
+    def lineReceived(self, line):
+        """Override irc.IRCClient.lineReceived to enable our new IRCv3 parsemsg."""
+        if bytes != str and isinstance(line, bytes):
+            # decode bytes from transport to unicode
+            line = line.decode("utf-8")
+
+        line = irc.lowDequote(line)
+        try:
+            prefix, command, params, tags = parsemsg(line)
+            self.tags = tags # hacky, ugh
+            print("tags:", tags)
+            if command in irc.numeric_to_symbolic:
+                command = irc.numeric_to_symbolic[command]
+            self.handleCommand(command, prefix, params)
+        except irc.IRCBadMessage:
+            self.badMessage(line, *sys.exc_info())
+
+    
+    def twitch_CLEARCHAT(self, prefix, params, tags):
+        """A nice easy one to test by sticking /clear into the twitch chat box."""
+        self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + 'unknown-event-1.ogg')
+
 
 
 class KnuxIRCBotFactory(protocol.ClientFactory):
