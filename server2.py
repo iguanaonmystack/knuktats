@@ -281,6 +281,21 @@ class KnukTatsPage(Resource):
         text = request.args.get(b't', [b'KNUK TATS'])[0].decode()
         return knuxtats.generate_tats(text)       
 
+# ------ Method for OBS to call out to ---------
+
+class OBSResourcePage(Resource):
+    isLeaf = True
+    def __init__(self, knuxfactory, *args, **kw):
+        self.knuxfactory = knuxfactory
+        super().__init__(*args, **kw)
+
+    def render_GET(self, request):
+        print(request.args)
+        text = request.args.get(b'e', [b'unknown'])[0].decode()
+        self.knuxfactory.broadcast("DUNGEON MASTER: " + 'unknown-event-1.ogg')
+        return b'OK'
+        
+
 # ------ Wiring ----------
 
 if __name__ == '__main__':
@@ -292,6 +307,7 @@ if __name__ == '__main__':
     knuxfactory.startFactory()  # when wrapped as a Twisted Web resource, start the underlying factory manually
     resource1 = WebSocketResource(knuxfactory)
     resource2 = KnukTatsPage()
+    resource3 = OBSResourcePage(knuxfactory)
 
     ircfactory = KnuxIRCBotFactory(knuxfactory)
     ircfactory.startFactory()
@@ -303,6 +319,7 @@ if __name__ == '__main__':
     # Twisted uses bytes for URIs)
     root.putChild(b"echo1", resource1)
     root.putChild(b"knux", resource2)
+    root.putChild(b"obs", resource3)
 
     # both under one Twisted Web Site
     site = Site(root)
