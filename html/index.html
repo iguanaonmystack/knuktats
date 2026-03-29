@@ -84,11 +84,6 @@
                         var text = received_msg.substring(prefix.length);
                         return show_button(text);
                     }
-                    prefix = "DUNGEON MASTER: ";
-                    if (received_msg.startsWith(prefix)) {
-                        var text = received_msg.substring(prefix.length);
-                        return dungeon_master(text);
-                    }
                 };
                  
                 ws.onclose = function() { 

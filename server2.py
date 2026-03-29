@@ -1,5 +1,8 @@
+import os
 import sys
+import glob
 import time
+import random
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -22,6 +25,7 @@ import knuxtats
 import button
 import config_local
 
+dungeonsfx = 'html/dungeonsfx/'
 
 def parsemsg(s):
     """Modification of twisted.words.protocols.irc.parsemsg to account for (enough) IRCv3.
@@ -156,6 +160,7 @@ class KnuxIRCBot(irc.IRCClient):
     
     def connectionMade(self):
         irc.IRCClient.connectionMade(self)
+        self.seen_users = set()
         self.logger = logging.getLogger('irc')
         self.logger.debug("[connected at %s]" % 
                         time.asctime(time.localtime(time.time())))
@@ -194,6 +199,15 @@ class KnuxIRCBot(irc.IRCClient):
             self.logger.debug("<%s> %s" % (self.nickname, msg))
             #self.msg(channel, "KNUK TATS")
             self.factory.knuxfactory.broadcast("KNUK TATS: " + msg)
+
+        if user not in self.seen_users:
+            print('finding audio for new joiner ' + user)
+            self.seen_users.add(user)
+            user_audios = glob.glob(dungeonsfx + user + '-?.ogg')
+            if not user_audios:
+                user_audios = glob.glob(dungeonsfx + 'new-chatter-?.ogg')
+            audio = random.choice(user_audios).rsplit(os.sep, 1)[1]
+            self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
 
     def alterCollidedNick(self, nickname):
         return nickname+'_'
