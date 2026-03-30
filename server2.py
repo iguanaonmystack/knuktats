@@ -4,6 +4,8 @@ import glob
 import time
 import random
 import logging
+import datetime
+
 logging.basicConfig(level=logging.DEBUG)
 
 from twisted.internet import reactor
@@ -84,6 +86,23 @@ def should_tat(msg):
             return False
     return True
 
+def choose_audio(prefix, fallback_prefix=None):
+    """Pick an audio file to tell the dungeon master to play.
+
+    Returns the filename, with extension but without the directory, or None
+    if no appropriate audio was found.
+    """
+    audios = glob.glob(dungeonsfx + prefix + '-?.ogg')
+    if not audios:
+        if not fallback_prefix:
+            return None
+        audios = glob.glob(dungeonsfx + fallback_prefix + '-?.ogg')
+    
+    if not audios:
+        return None
+
+    return random.choice(audios).rsplit(os.sep, 1)[1]
+
 
 # ------ WS ----------
 
@@ -160,7 +179,10 @@ class KnuxIRCBot(irc.IRCClient):
     
     def connectionMade(self):
         irc.IRCClient.connectionMade(self)
+
         self.seen_users = set()
+        self.timeouts = {}
+
         self.logger = logging.getLogger('irc')
         self.logger.debug("[connected at %s]" % 
                         time.asctime(time.localtime(time.time())))
@@ -199,15 +221,32 @@ class KnuxIRCBot(irc.IRCClient):
             self.logger.debug("<%s> %s" % (self.nickname, msg))
             #self.msg(channel, "KNUK TATS")
             self.factory.knuxfactory.broadcast("KNUK TATS: " + msg)
+        
+        # TODO let's get some commands in here
 
+        # chicken audio
+        if "chicken" in msg.lower():
+            print('chicken mentioned')
+            now = datetime.datetime.now()
+            diff = (now - self.timeouts.get('chicken', datetime.datetime.fromordinal(1)))
+            if diff / datetime.timedelta(seconds=1) > 60:
+                audio = choose_audio('chicken')
+                print('picked audio', audio)
+                self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
+            else:
+                print('... but not more than a minute ago')
+
+        # Welcome audio for first-of-the-session chatters
         if user not in self.seen_users:
             print('finding audio for new joiner ' + user)
             self.seen_users.add(user)
-            user_audios = glob.glob(dungeonsfx + user + '-?.ogg')
-            if not user_audios:
-                user_audios = glob.glob(dungeonsfx + 'new-chatter-?.ogg')
-            audio = random.choice(user_audios).rsplit(os.sep, 1)[1]
+            audio = choose_audio(user, 'new-chatter')
             self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
+
+        if 'bits' in self.tags:
+            audio = choose_audio(user, 'need-treasury')
+            self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
+
 
     def alterCollidedNick(self, nickname):
         return nickname+'_'
@@ -264,6 +303,46 @@ class KnuxIRCBot(irc.IRCClient):
     def twitch_CLEARCHAT(self, prefix, params, tags):
         """A nice easy one to test by sticking /clear into the twitch chat box."""
         self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + 'unknown-event-1.ogg')
+
+    def twitch_USERNOTICE(self, prefix, params, tags):
+        """A multipurpose command for various events in the stream."""
+        # See https://dev.twitch.tv/docs/chat/irc/
+        badges = {} # admin, bits, broadcaster, moderator, subscriber, staff, turbo
+        displayname = None
+        loginname = None
+        mod = False
+        subscriber = False
+        turbo = False
+        type_ = None # sub, resub, subgift, submysterygift, giftpaidupgrade, rewardgift, anongiftpaidupgrade, raid, unraid, bitsbadgetier, sharedchatnotice
+            # raid doesn't seem to be "on me raiding someone else"
+            # but unraid is a cancellation of our own raid
+        for tag, value in tags:
+            if tag == 'badges':
+                badge_values = value.split(',')
+                for badge_value in badge_values:
+                    name, version = badge_value.split('/', 1)
+                    badges[name] = version
+            elif tag == 'display-name':
+                displayname = value
+            elif tag == 'login':
+                loginname = value
+            elif tag == 'mod':
+                mod = value == '1'
+            elif tag == 'msg-id':
+                # the type of notice:
+                type_ = value
+            elif tag == 'subscriber':
+                subscriber = value == '1'
+            elif tag == 'turbo':
+                turbo = value == '1'
+        username = displayname or loginname
+
+        if type_ == 'raid':
+            audio = choose_audio('raid')
+            self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
+        elif 'sub' in type_:
+            audio = choose_audio('drink-flowing-casino')
+            self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
 
 
 

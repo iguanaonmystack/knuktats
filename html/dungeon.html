@@ -3,6 +3,74 @@
 <html>
 <head>
     <script type="text/javascript">
+        // https://medium.com/@artemkhrenov/advanced-concurrency-patterns-in-javascript-semaphore-mutex-read-write-lock-deadlock-prevention-79e8bffb5b81
+        class Semaphore {
+          // Think of this like setting up your coffee shop at opening time
+          constructor(maxConcurrent = 1) {
+            this.maxConcurrent = maxConcurrent;  // How many keys you have (default is 1)
+            this.current = 0;                    // How many keys are currently in use
+            this.queue = [];                     // The line of people waiting for a key
+          }
+
+          // When someone asks for a key
+          async acquire() {
+            // If we have an available key
+            if (this.current < this.maxConcurrent) {
+              this.current++;                   // Mark one more key as being used
+              return Promise.resolve();         // Here's your key, go ahead!
+            }
+
+            // If all keys are in use, get in line and wait
+            return new Promise(resolve => {
+              this.queue.push(resolve);         // Add person to the waiting line
+            });
+          }
+
+          // When someone returns a key
+          release() {
+            this.current--;                     // One less key in use
+
+            // If there's people waiting AND we have available keys
+            if (this.queue.length > 0 && this.current < this.maxConcurrent) {
+              this.current++;                   // Mark key as being used
+              const next = this.queue.shift();  // Get first person in line
+              next();                           // Give them the key
+            }
+          }
+        }
+        class Mutex {
+          // Setting up our single-key system
+          constructor() {
+            // We create a Semaphore with maxConcurrent = 1
+            // This means only one "key" is available
+            this.semaphore = new Semaphore(1);
+          }
+
+          // When someone wants to use the resource
+          async lock() {
+            // Try to get the key
+            return this.semaphore.acquire();
+          }
+
+          // When someone is done with the resource
+          unlock() {
+            // Return the key
+            this.semaphore.release();
+          }
+
+          // A safer way to use the lock - it's like a self-closing door!
+          async withLock(fn) {
+            await this.lock();      // Get the key
+            try {
+              return await fn();    // Do what you need to do
+            } finally {
+              this.unlock();        // ALWAYS return the key, even if there's an error
+            }
+          }
+        }
+
+
+        const mutex = new Mutex();
         var timer_id = null;
 
         var hide_button = function(text) {
@@ -31,8 +99,16 @@
             var maindiv = document.getElementById('main');
             
             var audio = new Audio('/dungeonsfx/' + text);
-            audio.addEventListener("canplaythrough", (event) => {
+            audio.addEventListener('ended', function() {
+                console.log('unlocking lock');
+                mutex.unlock();
+                console.log('unlocked');
+            });
+            audio.addEventListener("canplaythrough", async (event) => {
                 /* the audio is now playable; play it if permissions allow */
+                console.log('awaiting lock');
+                await mutex.lock();
+                console.log('lock aquired');
                 audio.play();
             });
         };
