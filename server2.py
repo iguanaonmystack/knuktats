@@ -79,6 +79,8 @@ def should_tat(msg):
         return False
     if len(words[0]) != 4 or len(words[1]) != 4:
         return False
+    if not msg.isalnum():
+        return False
     return True # temporary thing to generate some accidental tats
     # Can't just check word.isupper() because '1234'.isupper() is false
     for letter in words[0] + words[1]:
@@ -302,6 +304,10 @@ class KnuxIRCBot(irc.IRCClient):
     
     def twitch_CLEARCHAT(self, prefix, params, tags):
         """A nice easy one to test by sticking /clear into the twitch chat box."""
+        for tag in tags:
+            if tag == 'target-user-id':
+                # clearchat automatically sent for that user with a user ban (eg for spam)
+                return
         self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + 'unknown-event-1.ogg')
 
     def twitch_USERNOTICE(self, prefix, params, tags):
