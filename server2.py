@@ -265,6 +265,18 @@ class KnuxIRCBot(irc.IRCClient):
                 audio = choose_audio('new-mistress')
             self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
 
+    def command_KNUKTATS(self, user, channel, msg, args, cmd, tags):
+        self.msg(channel, "< Any two words on their own in an all-caps message will generate you some KNUK TATS")
+
+    def command_PRONOUNS(self, user, channel, msg, args, cmd, tags):
+        self.msg(channel, "< My in-video chat displays pronouns next to usernames if the user has set their pronouns using this site https://pronouns.alejo.io/")
+
+    def command_SO(self, user, channel, msg, args, cmd, tags):
+        pass # Nightbot currently handles this
+
+    def command_SOCIALS(self, user, channel, msg, args, cmd, tags):
+        self.msg(channel, "< Stick @kapellosaur@stctp.zone into mastodon's search box or find me here https://speedlines.stctp.zone/@kapellosaur ; I'm also on these: https://tumblr.com/kapellosaur ; https://instagram.com/kapellosaur ; https://cara.app/kapellosaur")
+
     def privmsg(self, user, channel, msg):
         """This will get called when the bot receives a message."""
         user = user.split('!', 1)[0]
