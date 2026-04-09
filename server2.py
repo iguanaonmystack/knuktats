@@ -14,6 +14,8 @@ from twisted.web.server import Site
 from twisted.web.static import Data
 from twisted.web.static import File
 from twisted.web.resource import Resource
+from twisted.enterprise import adbapi
+dbpool = adbapi.ConnectionPool("sqlite3", 'knux.sqlite', check_same_thread=False)
 
 from autobahn.twisted.websocket import WebSocketServerFactory, \
     WebSocketServerProtocol
@@ -28,6 +30,14 @@ import button
 import config_local
 
 dungeonsfx = 'html/dungeonsfx/'
+
+def ordinal(n):
+    """Black magic from https://stackoverflow.com/a/20007730"""
+    if 11 <= (n % 100) <= 13:
+        suffix = 'th'
+    else:
+        suffix = ['th', 'st', 'nd', 'rd', 'th'][min(n % 10, 4)]
+    return str(n) + suffix
 
 def parsemsg(s):
     """Modification of twisted.words.protocols.irc.parsemsg to account for (enough) IRCv3.
@@ -79,8 +89,9 @@ def should_tat(msg):
         return False
     if len(words[0]) != 4 or len(words[1]) != 4:
         return False
-    if not msg.isalnum():
-        return False
+    for word in words:
+        if not word.isalnum():
+            return False
     return True # temporary thing to generate some accidental tats
     # Can't just check word.isupper() because '1234'.isupper() is false
     for letter in words[0] + words[1]:
@@ -188,6 +199,7 @@ class KnuxIRCBot(irc.IRCClient):
         self.logger = logging.getLogger('irc')
         self.logger.debug("[connected at %s]" % 
                         time.asctime(time.localtime(time.time())))
+        dbpool.runQuery("SELECT * from users").addCallback(self.initial_query)
 
     def connectionLost(self, reason):
         irc.IRCClient.connectionLost(self, reason)
@@ -195,6 +207,9 @@ class KnuxIRCBot(irc.IRCClient):
                         time.asctime(time.localtime(time.time())))
 
     # callbacks for events
+
+    def initial_query(self, l):
+        print(l)
 
     def signedOn(self):
         """Called when bot has succesfully signed on to server."""
@@ -205,6 +220,51 @@ class KnuxIRCBot(irc.IRCClient):
         """This will get called when the bot joins the channel."""
         self.logger.debug("joined %s" % self.factory.channel)
 
+    def command(self, user, channel, msg, tags):
+        """Handle a twitch-style !command.
+
+        Return true if other message handling after this should be skipped."""
+        print("msg:", msg)
+        args = [arg for arg in msg.split() if arg]
+        cmd = args[0][1:].upper()
+        print('args, cmd:', args, cmd)
+        try:
+            return getattr(self, 'command_' + cmd)(user, channel, msg, args, cmd, tags)
+        except AttributeError:
+            self.msg(channel, "unknown command: {}".format(cmd))
+        if msg == '!button':
+            # only here for debug
+            self.factory.knuxfactory.broadcast("BUTTON: button")
+
+    def command_QUIT(self, user, channel, msg, args, cmd, tags):
+        self.msg(channel, "< you may not quit")
+
+    def command_EXIT(self, user, channel, msg, args, cmd, tags):
+        return self.command_QUIT(user, channel, msg, args, cmd, tags)
+
+    def command_HORNY(self, user, channel, msg, args, cmd, tags):
+        user = args[1] if len(args) > 1 else user
+
+        rand = random.random()
+        print('random', rand)
+        if rand < 0.2:
+            # Upsert the user into the database with incremented horny
+            dbpool.runQuery("INSERT INTO users (user, horny) values (?, 1) ON CONFLICT(user) DO UPDATE SET horny = horny + 1 RETURNING ?, user, horny", (user, channel)).addCallback(self.on_horny_query)
+        else:
+            self.msg(channel, "< {} is reportedly horny".format(user))
+            audio = choose_audio('horny')
+            self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
+
+    def on_horny_query(self, result):
+        print('horny result', result) # [('kapellosaur', 4)]
+        for channel, user, horny in result:
+            self.msg(channel, "< {} has acquired a new mistress, the {} of many".format(user, ordinal(horny)))
+            if horny >= 5:
+                audio = choose_audio('excess-mistresses')
+            else:
+                audio = choose_audio('new-mistress')
+            self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
+
     def privmsg(self, user, channel, msg):
         """This will get called when the bot receives a message."""
         user = user.split('!', 1)[0]
@@ -214,17 +274,16 @@ class KnuxIRCBot(irc.IRCClient):
         if channel == self.nickname:
             return
 
-        #if msg == '!button':
-        #    # only here for debug
-        #    self.factory.knuxfactory.broadcast("BUTTON: button")
+        # commands
+        if msg.startswith('!'):
+            if self.command(user, channel, msg, self.tags):
+                return
 
         # Otherwise check to see if it is a message is KNUK TATS
         if should_tat(msg):
             self.logger.debug("<%s> %s" % (self.nickname, msg))
             #self.msg(channel, "KNUK TATS")
             self.factory.knuxfactory.broadcast("KNUK TATS: " + msg)
-        
-        # TODO let's get some commands in here
 
         # chicken audio
         if "chicken" in msg.lower():
@@ -239,14 +298,14 @@ class KnuxIRCBot(irc.IRCClient):
                 print('... but not more than a minute ago')
 
         # Welcome audio for first-of-the-session chatters
-        if user not in self.seen_users:
+        if user != "kapellosaur" and user not in self.seen_users:
             print('finding audio for new joiner ' + user)
             self.seen_users.add(user)
             audio = choose_audio(user, 'new-chatter')
             self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
 
         if 'bits' in self.tags:
-            audio = choose_audio(user, 'need-treasury')
+            audio = choose_audio('need-treasury')
             self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
 
 
@@ -393,7 +452,7 @@ class OBSResourcePage(Resource):
         text = request.args.get(b'e', [b'unknown'])[0].decode()
         self.knuxfactory.broadcast("DUNGEON MASTER: " + 'unknown-event-1.ogg')
         return b'OK'
-        
+
 
 # ------ Wiring ----------
 
@@ -427,5 +486,7 @@ if __name__ == '__main__':
     reactor.listenTCP(9000, site)
     reactor.connectSSL('irc.chat.twitch.tv', 6697, ircfactory, ssl.ClientContextFactory())
     button = button.setup(reactor, knuxfactory)
+
+    reactor.addSystemEventTrigger('before', 'shutdown', lambda: dbpool.close())
 
     reactor.run()
