@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import glob
 import time
@@ -308,6 +309,11 @@ class KnuxIRCBot(irc.IRCClient):
                 self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
             else:
                 print('... but not more than a minute ago')
+
+        if re.search(r'\bCheer[0-9]+\b', msg, re.I):
+            print('cheer mentioned')
+            audio = choose_audio('need-treasury')
+            self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
 
         # Welcome audio for first-of-the-session chatters
         if user != "kapellosaur" and user not in self.seen_users:
