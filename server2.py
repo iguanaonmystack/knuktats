@@ -196,6 +196,7 @@ class KnuxIRCBot(irc.IRCClient):
 
         self.seen_users = set()
         self.timeouts = {}
+        self.wotd = None # word of the day
 
         self.logger = logging.getLogger('irc')
         self.logger.debug("[connected at %s]" % 
@@ -310,11 +311,6 @@ class KnuxIRCBot(irc.IRCClient):
             else:
                 print('... but not more than a minute ago')
 
-        if re.search(r'\bCheer[0-9]+\b', msg, re.I):
-            print('cheer mentioned')
-            audio = choose_audio('need-treasury')
-            self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
-
         # Welcome audio for first-of-the-session chatters
         if user != "kapellosaur" and user not in self.seen_users:
             print('finding audio for new joiner ' + user)
@@ -322,7 +318,12 @@ class KnuxIRCBot(irc.IRCClient):
             audio = choose_audio(user, 'new-chatter')
             self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
 
-        if 'bits' in self.tags:
+        bits = False
+        for tag, value in self.tags:
+            if tag == 'bits':
+                bits = True
+                break
+        if bits:
             audio = choose_audio('need-treasury')
             self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
 
