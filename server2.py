@@ -230,10 +230,13 @@ class KnuxIRCBot(irc.IRCClient):
         args = [arg for arg in msg.split() if arg]
         cmd = args[0][1:].upper()
         print('args, cmd:', args, cmd)
+        fn = None
         try:
-            return getattr(self, 'command_' + cmd)(user, channel, msg, args, cmd, tags)
+            fn = getattr(self, 'command_' + cmd)
         except AttributeError:
             self.msg(channel, "unknown command: {}".format(cmd))
+        if fn:
+            return fn(user, channel, msg, args, cmd, tags)
         if msg == '!button':
             # only here for debug
             self.factory.knuxfactory.broadcast("BUTTON: button")
@@ -279,6 +282,22 @@ class KnuxIRCBot(irc.IRCClient):
     def command_SOCIALS(self, user, channel, msg, args, cmd, tags):
         self.msg(channel, "< Stick @kapellosaur@stctp.zone into mastodon's search box or find me here https://speedlines.stctp.zone/@kapellosaur ; I'm also on these: https://tumblr.com/kapellosaur ; https://instagram.com/kapellosaur ; https://cara.app/kapellosaur")
 
+    def command_LURK(self, user, channel, msg, args, cmd, tags):
+        self.msg(channel, "< You are now lurking, unseen, in the shadows")
+
+    def command_UNLURK(self, user, channel, msg, args, cmd, tags):
+        self.msg(channel, "< The prodigal child returns")
+
+    def command_BACK(self, user, channel, msg, args, cmd, tags):
+        self.msg(channel, "< The prodigal child returns")
+
+    def command_COMMANDS(self, user, channel, msg, args, cmd, tags):
+        commands = set()
+        for methodname in dir(self):
+            if methodname.startswith('command_'):
+                commands.add(methodname[len('command_'):])
+        self.msg(channel, "< commands: " + " ".join('!' + command.lower() for command in commands))
+
     def privmsg(self, user, channel, msg):
         """This will get called when the bot receives a message."""
         user = user.split('!', 1)[0]
@@ -312,12 +331,13 @@ class KnuxIRCBot(irc.IRCClient):
                 print('... but not more than a minute ago')
 
         # Welcome audio for first-of-the-session chatters
-        if user != "kapellosaur" and user not in self.seen_users:
+        if user != "kapellosaur" and user != "nightbot" and user not in self.seen_users:
             print('finding audio for new joiner ' + user)
             self.seen_users.add(user)
             audio = choose_audio(user, 'new-chatter')
             self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
 
+        # Cheer audio
         bits = False
         for tag, value in self.tags:
             if tag == 'bits':
@@ -326,6 +346,11 @@ class KnuxIRCBot(irc.IRCClient):
         if bits:
             audio = choose_audio('need-treasury')
             self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
+
+        # Word of the day
+        # each message has a 2% chance of containing the word of the day
+        # if that message is selected, pick a word from it at random (ideally with some basic rude word filters)
+        # Congratulate the user on picking the word of the day
 
 
     def alterCollidedNick(self, nickname):
