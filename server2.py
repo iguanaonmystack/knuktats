@@ -9,13 +9,13 @@ import datetime
 
 logging.basicConfig(level=logging.DEBUG)
 
-from twisted.internet import reactor
 from twisted.python import log
+from twisted.internet import reactor
 from twisted.web.server import Site
 from twisted.web.static import Data
 from twisted.web.static import File
-from twisted.web.resource import Resource
 from twisted.enterprise import adbapi
+from twisted.web.resource import Resource
 dbpool = adbapi.ConnectionPool("sqlite3", 'knux.sqlite', check_same_thread=False)
 
 from autobahn.twisted.websocket import WebSocketServerFactory, \
@@ -26,11 +26,20 @@ from autobahn.twisted.resource import WebSocketResource
 from twisted.words.protocols import irc
 from twisted.internet import protocol, ssl
 
+import nltk.tokenize
+
 import knuxtats
 import button
 import config_local
 
 dungeonsfx = 'html/dungeonsfx/'
+
+badwords = set()
+if os.path.exists('badwords.txt'):
+    badwordsf = open('badwords.txt')
+    for line in badwordsf:
+        line = line.strip().lower()
+        badwords.add(line)
 
 def ordinal(n):
     """Black magic from https://stackoverflow.com/a/20007730"""
@@ -349,9 +358,22 @@ class KnuxIRCBot(irc.IRCClient):
 
         # Word of the day
         # each message has a 2% chance of containing the word of the day
-        # if that message is selected, pick a word from it at random (ideally with some basic rude word filters)
-        # Congratulate the user on picking the word of the day
+        congrats = False
+        if not self.wotd and random.random() < 0.02:
+            # if that message is selected, pick a word from it at random (with some basic rude word filters)
+            goodwords = []
+            for word in nltk.tokenize.word_tokenize(msg):
+                if word.isalpha() and word.lower() not in badwords:
+                    goodwords.append(word)
+            if goodwords:
+                self.wotd = random.choice(goodwords)
+                # Congratulate the user on picking the word of the day
+                congrats = True
+                self.msg(channel, "< {} has found the word of the day: '{}'".format(user, self.wotd))
 
+        if self.wotd and not congrats:
+            if re.search(r'\b' + re.escape(self.wotd) + r'\b', msg, re.I):
+                self.msg(channel, "< {} said the word of the day".format(user))
 
     def alterCollidedNick(self, nickname):
         return nickname+'_'
