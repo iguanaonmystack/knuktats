@@ -205,6 +205,7 @@ class KnuxIRCBot(irc.IRCClient):
 
         self.seen_users = set()
         self.timeouts = {}
+        self.words = set() # which have been ordered in Python for a while now
         self.wotd = None # word of the day
 
         self.logger = logging.getLogger('irc')
@@ -367,19 +368,27 @@ class KnuxIRCBot(irc.IRCClient):
             self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
 
         # Word of the day
-        # each message has a 2% chance of containing the word of the day
+        # each word has a 1/250 chance of being the word of the day
         congrats = False
-        if not self.wotd and random.random() < 0.02:
-            # if that message is selected, pick a word from it at random (with some basic rude word filters)
-            goodwords = []
+        if not self.wotd:
             for word in nltk.tokenize.word_tokenize(msg):
-                if word.isalpha() and word.lower() not in badwords:
-                    goodwords.append(word)
-            if goodwords:
-                self.wotd = random.choice(goodwords)
-                # Congratulate the user on picking the word of the day
-                congrats = True
-                self.msg(channel, "< {} has found the word of the day: '{}'".format(user, self.wotd))
+                wordlow = word.lower()
+                if not word.isalpha():
+                    continue
+                elif wordlow in badwords:
+                    continue
+                elif wordlow in self.words:
+                    continue
+                elif user in ("kapellosaur", "nightbot"):
+                    continue
+                # eligible word
+                elif random.random() < 0.004:
+                    # Congratulate the user on picking the word of the day
+                    print('random success')
+                    self.wotd = word
+                    congrats = True
+                    self.msg(channel, "< {} has found the word of the day: '{}'".format(user, self.wotd))
+                self.words.add(wordlow)
 
         if self.wotd and not congrats:
             if re.search(r'\b' + re.escape(self.wotd) + r'\b', msg, re.I):
