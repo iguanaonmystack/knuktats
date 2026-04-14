@@ -300,6 +300,16 @@ class KnuxIRCBot(irc.IRCClient):
     def command_BACK(self, user, channel, msg, args, cmd, tags):
         self.msg(channel, "< The prodigal child returns")
 
+    def command_WOTD(self, user, channel, msg, args, cmd, tags):
+        guess = args[1] if len(args) > 1 else None
+        if guess:
+            self.msg(channel, "< this is not the place to guess the word of the day")
+        elif not self.wotd:
+            self.msg(channel, "< The word of the day hasn't been discovered yet. Keep trying and you might find it")
+        else:
+            self.msg(channel, "< The word of the day is {}".format(self.wotd))
+        return True
+
     def command_COMMANDS(self, user, channel, msg, args, cmd, tags):
         commands = set()
         for methodname in dir(self):
