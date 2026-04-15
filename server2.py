@@ -27,6 +27,8 @@ from twisted.words.protocols import irc
 from twisted.internet import protocol, ssl
 
 import nltk.tokenize
+import nltk.corpus
+dictionary = set(nltk.corpus.words.words())
 
 import knuxtats
 import button
@@ -379,9 +381,13 @@ class KnuxIRCBot(irc.IRCClient):
                     continue
                 elif wordlow in self.words:
                     continue
-                elif user in ("kapellosaur", "nightbot"):
+                elif wordlow not in dictionary:
+                    # the dictionary contains some capitalised proper nouns but we don't want those anyway
                     continue
-                # eligible word
+                elif user in ("kapellosaur", "nightbot"):
+                    # This is here rather than earlier to make sure the words still get added to the list
+                    continue
+                # eligible word:
                 elif random.random() < 0.004:
                     # Congratulate the user on picking the word of the day
                     print('random success')
