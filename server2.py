@@ -340,6 +340,30 @@ class KnuxIRCBot(irc.IRCClient):
             #self.msg(channel, "KNUK TATS")
             self.factory.knuxfactory.broadcast("KNUK TATS: " + msg)
 
+        self.privmsg_action_common(user, channel, msg)
+
+        # Cheer audio
+        bits = False
+        for tag, value in self.tags:
+            if tag == 'bits':
+                bits = True
+                break
+        if bits:
+            audio = choose_audio('need-treasury')
+            self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
+
+    def alterCollidedNick(self, nickname):
+        return nickname+'_'
+
+    def action(self, user, channel, msg):
+        """This will get called when the bot sees someone do an action."""
+        user = user.split('!', 1)[0]
+        self.logger.debug("* %s %s" % (user, msg))
+        self.privmsg_action_common(user, channel, msg)
+
+    def privmsg_action_common(self, user, channel, msg):
+        """Common things we want to process on both regular messages and /me actions"""
+
         # chicken audio
         if "chicken" in msg.lower():
             print('chicken mentioned')
@@ -357,16 +381,6 @@ class KnuxIRCBot(irc.IRCClient):
             print('finding audio for new joiner ' + user)
             self.seen_users.add(user)
             audio = choose_audio(user, 'new-chatter')
-            self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
-
-        # Cheer audio
-        bits = False
-        for tag, value in self.tags:
-            if tag == 'bits':
-                bits = True
-                break
-        if bits:
-            audio = choose_audio('need-treasury')
             self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
 
         # Word of the day
@@ -399,14 +413,6 @@ class KnuxIRCBot(irc.IRCClient):
         if self.wotd and not congrats:
             if re.search(r'\b' + re.escape(self.wotd) + r'\b', msg, re.I):
                 self.msg(channel, "< {} said the word of the day".format(user))
-
-    def alterCollidedNick(self, nickname):
-        return nickname+'_'
-
-    def action(self, user, channel, msg):
-        """This will get called when the bot sees someone do an action."""
-        user = user.split('!', 1)[0]
-        self.logger.debug("* %s %s" % (user, msg))
 
     # irc callbacks
 
