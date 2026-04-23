@@ -255,9 +255,11 @@ class KnuxIRCBot(irc.IRCClient):
 
     def command_QUIT(self, user, channel, msg, args, cmd, tags):
         self.msg(channel, "< you may not quit")
+    command_QUIT.hidden = True
 
     def command_EXIT(self, user, channel, msg, args, cmd, tags):
         return self.command_QUIT(user, channel, msg, args, cmd, tags)
+    command_EXIT.hidden = True
 
     def command_HORNY(self, user, channel, msg, args, cmd, tags):
         user = args[1] if len(args) > 1 else user
@@ -302,6 +304,7 @@ class KnuxIRCBot(irc.IRCClient):
 
     def command_BACK(self, user, channel, msg, args, cmd, tags):
         self.msg(channel, "< The prodigal child returns")
+    command_BACK.hidden = True
 
     def command_WOTD(self, user, channel, msg, args, cmd, tags):
         guess = args[1] if len(args) > 1 else None
@@ -316,9 +319,19 @@ class KnuxIRCBot(irc.IRCClient):
     def command_ADS(self, user, channel, msg, args, cmd, tags):
         self.msg(channel, "< Three minutes of adverts? Every hour? FOREVER?!")
 
+    def command_WHY(self, user, channel, msg, args, cmd, tags):
+        audio = choose_audio('why-no')
+        self.factory.knuxfactory.broadcast("SFX: " + audio)
+
+    def command_NO(self, user, channel, msg, args, cmd, tags):
+        return self.command_WHY(user, channel, msg, args, cmd, tags)
+    command_NO.hidden = True
+
     def command_COMMANDS(self, user, channel, msg, args, cmd, tags):
         commands = set()
         for methodname in dir(self):
+            if getattr(getattr(self, methodname), 'hidden', None):
+                continue
             if methodname.startswith('command_'):
                 commands.add(methodname[len('command_'):])
         self.msg(channel, "< commands: " + " ".join('!' + command.lower() for command in commands))
@@ -420,7 +433,7 @@ class KnuxIRCBot(irc.IRCClient):
 
         if self.wotd and not congrats:
             if re.search(r'\b' + re.escape(self.wotd) + r'\b', msg, re.I):
-                self.msg(channel, "< {} said the word of the day".format(user))
+                self.msg(channel, "< {} said the word of the day: '{}'".format(user, self.wotd))
 
     # irc callbacks
 
