@@ -313,6 +313,9 @@ class KnuxIRCBot(irc.IRCClient):
             self.msg(channel, "< The word of the day is {}".format(self.wotd))
         return True
 
+    def command_ADS(self, user, channel, msg, args, cmd, tags):
+        self.msg(channel, "< Three minutes of adverts? Every hour? FOREVER?!")
+
     def command_COMMANDS(self, user, channel, msg, args, cmd, tags):
         commands = set()
         for methodname in dir(self):
@@ -375,6 +378,11 @@ class KnuxIRCBot(irc.IRCClient):
                 self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
             else:
                 print('... but not more than a minute ago')
+
+        if "bird" in msg.lower():
+            print('birds mentioned')
+            audio = choose_audio('birds')
+            self.factory.knuxfactory.broadcast("SFX: " + audio)
 
         # Welcome audio for first-of-the-session chatters
         if user != "kapellosaur" and user != "nightbot" and user not in self.seen_users:

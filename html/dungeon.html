@@ -134,6 +134,14 @@
                         var text = received_msg.substring(prefix.length);
                         return dungeon_master(text);
                     }
+                    /* At the moment SFX are handled identically but 
+                       we might want to change that in the future (eg if
+                       we have a talking Dungeon Master */
+                    prefix = "SFX: ";
+                    if (received_msg.startsWith(prefix)) {
+                        var text = received_msg.substring(prefix.length);
+                        return dungeon_master(text);
+                    }
                 };
                  
                 ws.onclose = function() { 
