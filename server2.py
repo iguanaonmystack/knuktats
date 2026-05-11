@@ -38,10 +38,19 @@ dungeonsfx = 'html/dungeonsfx/'
 
 badwords = set()
 if os.path.exists('badwords.txt'):
-    badwordsf = open('badwords.txt')
-    for line in badwordsf:
-        line = line.strip().lower()
-        badwords.add(line)
+    with open('badwords.txt') as badwordsf:
+        for line in badwordsf:
+            line = line.strip().lower()
+            if line:
+                badwords.add(line)
+
+pastwotds = set()
+if os.path.exists('wotd_history.txt'):
+    with open('wotd_history.txt') as pastwotdsf:
+        for line in pastwotdsf:
+            line = line.strip().lower()
+            if line:
+                pastwotds.add(line)
 
 def ordinal(n):
     """Black magic from https://stackoverflow.com/a/20007730"""
@@ -327,6 +336,18 @@ class KnuxIRCBot(irc.IRCClient):
         return self.command_WHY(user, channel, msg, args, cmd, tags)
     command_NO.hidden = True
 
+    def command_GOODWORK(self, user, channel, msg, args, cmd, tags):
+        audio = choose_audio('accidents')
+        self.factory.knuxfactory.broadcast("SFX: " + audio)
+
+    def command_OMM(self, user, channel, msg, args, cmd, tags):
+        audio = choose_audio('omm')
+        self.factory.knuxfactory.broadcast("SFX: " + audio)
+
+    def command_BUY(self, user, channel, msg, args, cmd, tags):
+        audio = choose_audio('buy-full')
+        self.factory.knuxfactory.broadcast("SFX: " + audio)
+
     def command_COMMANDS(self, user, channel, msg, args, cmd, tags):
         commands = set()
         for methodname in dir(self):
@@ -380,22 +401,38 @@ class KnuxIRCBot(irc.IRCClient):
     def privmsg_action_common(self, user, channel, msg):
         """Common things we want to process on both regular messages and /me actions"""
 
-        # chicken audio
-        if "chicken" in msg.lower():
-            print('chicken mentioned')
-            now = datetime.datetime.now()
-            diff = (now - self.timeouts.get('chicken', datetime.datetime.fromordinal(1)))
-            if diff / datetime.timedelta(seconds=1) > 60:
-                audio = choose_audio('chicken')
-                print('picked audio', audio)
-                self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
-            else:
-                print('... but not more than a minute ago')
-
-        if "bird" in msg.lower():
-            print('birds mentioned')
-            audio = choose_audio('birds')
-            self.factory.knuxfactory.broadcast("SFX: " + audio)
+        for word, audio_prefix, dm in (
+            ('chicken', 'chicken', True),
+            ('birds', 'birds', False),
+            ('well done', 'accidents', False),
+            ('good work', 'accidents', False),
+            ('buy', 'buy', False),
+            ('bought', 'buy', False),
+            ('shop', 'buy', False),
+            ('never mind', 'never-mind', False),
+            ('what\'s wrong', 'whats-wrong', False),
+            ('roommate', 'roommate', False),
+            ('housemate', 'roommate', False),
+            ('flatmate', 'roommate', False),
+            ('roomy', 'roommate', False),
+            ('roomie', 'roommate', False),
+            ('performance', 'performance-perfect', False),
+            ('perfect', 'performance-perfect', False),
+            ('nowhere', 'nowhere-to-go', False),
+        ):
+            # whether the DM is saying it or if it's just a sound clip
+            prefix = 'DUNGEON MASTER: ' if dm else 'SFX: '
+            # chicken audio
+            if word in msg.lower():
+                print('{} mentioned', word)
+                now = datetime.datetime.now()
+                diff = (now - self.timeouts.get(word, datetime.datetime.fromordinal(1)))
+                if diff / datetime.timedelta(seconds=1) > 60:
+                    audio = choose_audio(audio_prefix)
+                    print('picked audio', audio)
+                    self.factory.knuxfactory.broadcast(prefix + audio)
+                else:
+                    print('... but not more than a minute ago')
 
         # Welcome audio for first-of-the-session chatters
         if user != "kapellosaur" and user != "nightbot" and user not in self.seen_users:
@@ -429,6 +466,8 @@ class KnuxIRCBot(irc.IRCClient):
                     self.wotd = word
                     congrats = True
                     self.msg(channel, "< {} has found the word of the day: '{}'".format(user, self.wotd))
+                    with open('wotd_history.txt', 'a') as pastwotdsf:
+                        print(word, file=pastwotdsf)
                 self.words.add(wordlow)
 
         if self.wotd and not congrats:

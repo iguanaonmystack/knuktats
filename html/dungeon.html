@@ -100,7 +100,12 @@
             
             var audio = new Audio('/dungeonsfx/' + text);
             audio.addEventListener('ended', function() {
-                console.log('unlocking lock');
+                console.log('audio ended; unlocking lock');
+                mutex.unlock();
+                console.log('unlocked');
+            });
+            audio.addEventListener('error', function() {
+                console.log('audio error; unlocking lock');
                 mutex.unlock();
                 console.log('unlocked');
             });
@@ -109,7 +114,18 @@
                 console.log('awaiting lock');
                 await mutex.lock();
                 console.log('lock aquired');
-                audio.play();
+                var promise = audio.play();
+                if (promise !== undefined) {
+                  promise.then(_ => {
+                    // Autoplay started!
+                  }).catch(error => {
+                    // Autoplay was prevented.
+                    /* when user hasn't interacted yet; not a problem in OBS */
+                    console.log('notallowederror; unlocking lock');
+                    mutex.unlock();
+                    console.log('unlocked');
+                  });
+                }
             });
         };
 
