@@ -348,6 +348,34 @@ class KnuxIRCBot(irc.IRCClient):
         audio = choose_audio('buy-full')
         self.factory.knuxfactory.broadcast("SFX: " + audio)
 
+    def on_reminder_time_done(self, user, channel, msg, args, cmd, tags):
+        self.msg(channel, f"< reminder for @{user}: " + ' '.join(args[2:]))
+
+    def command_REMINDER(self, user, channel, msg, args, cmd, tags):
+        time = args[1] if len(args) > 1 else None
+        time_seconds = 0
+        if time:
+            if time.endswith('s'):
+                try:
+                    time_seconds = float(time[:-1])
+                except ValueError:
+                    pass
+            elif time.endswith('m'):
+                try:
+                    time_seconds = float(time[:-1]) * 60
+                except ValueError:
+                    pass
+            elif time.endswith('h'):
+                try:
+                    time_seconds = float(time[:-1]) * 60 * 60
+                except ValueError:
+                    pass
+        if time_seconds and len(args) > 2:
+            reactor.callLater(time_seconds, self.on_reminder_time_done, user, channel, msg, args, cmd, tags)
+            self.msg(channel, "< okay, no promises though.")
+        else:
+            self.msg(channel, "< reminder usage: TIME[s|m|h] reminder message")
+
     def command_COMMANDS(self, user, channel, msg, args, cmd, tags):
         commands = set()
         for methodname in dir(self):
