@@ -275,7 +275,7 @@ class KnuxIRCBot(irc.IRCClient):
 
         rand = random.random()
         print('random', rand)
-        if rand < 0.2:
+        if rand < 1:
             # Upsert the user into the database with incremented horny
             dbpool.runQuery("INSERT INTO users (user, horny) values (?, 1) ON CONFLICT(user) DO UPDATE SET horny = horny + 1 RETURNING ?, user, horny", (user, channel)).addCallback(self.on_horny_query)
         else:
@@ -347,6 +347,9 @@ class KnuxIRCBot(irc.IRCClient):
     def command_BUY(self, user, channel, msg, args, cmd, tags):
         audio = choose_audio('buy-full')
         self.factory.knuxfactory.broadcast("SFX: " + audio)
+
+    def command_FART(self, user, channel, msg, args, cmd, tags):
+        self.msg(channel, "< Over to you, keeper.")
 
     def on_reminder_time_done(self, user, channel, msg, args, cmd, tags):
         self.msg(channel, f"< reminder for @{user}: " + ' '.join(args[2:]))
@@ -447,6 +450,7 @@ class KnuxIRCBot(irc.IRCClient):
             ('performance', 'performance-perfect', False),
             ('perfect', 'performance-perfect', False),
             ('nowhere', 'nowhere-to-go', False),
+            ('pretty nice', 'pretty-nice', False),
         ):
             # whether the DM is saying it or if it's just a sound clip
             prefix = 'DUNGEON MASTER: ' if dm else 'SFX: '
