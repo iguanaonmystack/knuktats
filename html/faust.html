@@ -1,0 +1,191 @@
+<!DOCTYPE HTML>
+
+<html>
+<head>
+    <script type="text/javascript">
+        // https://medium.com/@artemkhrenov/advanced-concurrency-patterns-in-javascript-semaphore-mutex-read-write-lock-deadlock-prevention-79e8bffb5b81
+        class Semaphore {
+          // Think of this like setting up your coffee shop at opening time
+          constructor(maxConcurrent = 1) {
+            this.maxConcurrent = maxConcurrent;  // How many keys you have (default is 1)
+            this.current = 0;                    // How many keys are currently in use
+            this.queue = [];                     // The line of people waiting for a key
+          }
+
+          // When someone asks for a key
+          async acquire() {
+            // If we have an available key
+            if (this.current < this.maxConcurrent) {
+              this.current++;                   // Mark one more key as being used
+              return Promise.resolve();         // Here's your key, go ahead!
+            }
+
+            // If all keys are in use, get in line and wait
+            return new Promise(resolve => {
+              this.queue.push(resolve);         // Add person to the waiting line
+            });
+          }
+
+          // When someone returns a key
+          release() {
+            this.current--;                     // One less key in use
+
+            // If there's people waiting AND we have available keys
+            if (this.queue.length > 0 && this.current < this.maxConcurrent) {
+              this.current++;                   // Mark key as being used
+              const next = this.queue.shift();  // Get first person in line
+              next();                           // Give them the key
+            }
+          }
+        }
+        class Mutex {
+          // Setting up our single-key system
+          constructor() {
+            // We create a Semaphore with maxConcurrent = 1
+            // This means only one "key" is available
+            this.semaphore = new Semaphore(1);
+          }
+
+          // When someone wants to use the resource
+          async lock() {
+            // Try to get the key
+            return this.semaphore.acquire();
+          }
+
+          // When someone is done with the resource
+          unlock() {
+            // Return the key
+            this.semaphore.release();
+          }
+
+          // A safer way to use the lock - it's like a self-closing door!
+          async withLock(fn) {
+            await this.lock();      // Get the key
+            try {
+              return await fn();    // Do what you need to do
+            } finally {
+              this.unlock();        // ALWAYS return the key, even if there's an error
+            }
+          }
+        }
+
+
+        const mutex = new Mutex();
+        var timer_id = null;
+
+        var hide_button = function(text) {
+            timer_id = null;
+            var maindiv = document.getElementById('main');
+            maindiv.replaceChildren();
+        };
+
+        var show_button = function(text) {
+            var maindiv = document.getElementById('main');
+
+            var p = document.createElement('p');
+            p.innerText = text;
+            p.style.textAlign = 'center';
+            p.style.fontFamily = 'sans';
+            p.style.color = '#DDD';
+            p.style.fontSize = '400%';
+            maindiv.replaceChildren(p);
+            if (timer_id != null) {
+                window.clearTimeout(timer_id);
+            }
+            timer_id = window.setTimeout(hide_button, 3000);
+        };
+
+        var faust = function(text) {
+            var maindiv = document.getElementById('main');
+            
+            var video = document.createElement("video");
+            video.height = 300;
+            video.width = 400;
+            video.src = "Faust.webm";
+
+            var maindiv = document.getElementById('main');
+            maindiv.replaceChildren(video);
+
+            video.addEventListener("ended", (event) => {
+              console.log(
+                "Video stopped either because it has finished playing or no further data is available.",
+              );
+              maindiv.replaceChildren();
+            });
+
+            video.addEventListener("canplaythrough", async (event) => {
+                /* the audio is now playable; play it if permissions allow */
+                console.log('video is playable');
+                var promise = video.play();
+                if (promise !== undefined) {
+                  promise.then(_ => {
+                    // Autoplay started!
+                  }).catch(error => {
+                    // Autoplay was prevented.
+                    /* when user hasn't interacted yet; not a problem in OBS */
+                    console.log('notallowederror');
+                  });
+                }
+            });
+        };
+
+        var websocket_func = function() {
+            if ("WebSocket" in window) {
+                // Let us open a web socket
+                var ws = new WebSocket("ws://localhost:9000/echo1");
+                 
+                ws.onopen = function() {
+                   
+                    // Web Socket is connected, send data using send()
+                    msg = "message to send";
+                    console.log("> " + msg);
+                    ws.send(msg);
+                };
+                 
+                ws.onmessage = function (evt) { 
+                    var received_msg = evt.data;
+                    console.log("< " + received_msg);
+                    var prefix = "FAUST: ";
+                    if (received_msg.startsWith(prefix)) {
+                        var text = received_msg.substring(prefix.length);
+                        return faust(text);
+                    }
+                };
+                 
+                ws.onclose = function() { 
+                    console.log("Connection closed");
+                };
+            } else {
+                // The browser doesn't support WebSocket
+                console.log("No websocket support");
+            }
+        };
+
+        window.onload = (event) => {
+            console.log('page is fully loaded');
+            websocket_func()
+        };
+    </script>
+    <style>
+        html, body {
+            margin:0px;
+            height:100%;
+        }
+
+        #main {
+            display: flex;
+            justify-content: center;
+            align-content: center;
+            flex-direction: column;
+            position: absolute;
+            top: 0px;
+            right: 0px;
+            bottom: 0px;
+            left: 0px;
+        }
+    </style>
+</head>
+<body>
+    <div id="main"></div>
+</body>
+</html>

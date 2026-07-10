@@ -5,7 +5,9 @@ import glob
 import time
 import random
 import logging
+import operator
 import datetime
+import collections
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -224,6 +226,7 @@ class KnuxIRCBot(irc.IRCClient):
         self.timeouts = {}
         self.words = set() # which have been ordered in Python for a while now
         self.wotd = None # word of the day
+        self.faust = None # faust in chat
 
         self.logger = logging.getLogger('irc')
         self.logger.debug("[connected at %s]" % 
@@ -278,6 +281,15 @@ class KnuxIRCBot(irc.IRCClient):
         return self.command_QUIT(user, channel, msg, args, cmd, tags)
     command_EXIT.hidden = True
 
+    def command_FAUST(self, user, channel, msg, args, cmd, tags):
+        if not self.faust:
+            self.factory.knuxfactory.broadcast("FAUST: start")
+            self.msg(channel, "< Oh now you've done it! {} is Faust in chat!".format(user))
+            self.faust = user
+        else:
+            self.msg(channel, "< {} is Faust in chat for today".format(user))
+    command_FAUST.hidden = True
+
     def command_HORNY(self, user, channel, msg, args, cmd, tags):
         user = args[1] if len(args) > 1 else user
 
@@ -300,6 +312,39 @@ class KnuxIRCBot(irc.IRCClient):
             else:
                 audio = choose_audio('new-mistress')
             self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
+
+    def command_POINT(self, user, channel, msg, args, cmd, tags):
+        if len(args) < 3:
+            self.msg(channel, "< !point usage: !point to_whom and a reason")
+            return
+        recipient = args[1]
+        if recipient.startswith("@"):
+            recipient = recipient[1:]
+        reason = " ".join(args[2:])
+        if user == recipient:
+            self.msg(channel, "< You cannot award points to yourself")
+            return
+        self.msg(channel, "< {} gave a point to {}, adding '{}'".format(user, recipient, reason))
+        dbpool.runQuery("INSERT INTO points (user, recipient, reason) values (?, ?, ?)", (user, recipient, reason)).addCallback(self.on_point_add_query)
+
+    def on_point_add_query(self, result):
+        print("points result", result)
+
+    def command_POINTS(self, user, channel, msg, args, cmd, tags):
+        dbpool.runQuery("SELECT ?, user, recipient, reason FROM points", (channel,)).addCallback(self.on_points_query)
+
+    def on_points_query(self, result):
+        print("points result", result)
+        recipients = collections.defaultdict(lambda: 0)
+        winner = None
+        for (channel, user, recipient, reason) in result:
+            recipients[recipient] += 1
+        for recipient, count in sorted(recipients.items(), key=operator.itemgetter(1), reverse=True):
+            if not winner:
+                winner = recipient
+            self.msg(channel, "{} points: {}".format(count, recipient))
+        if winner:
+            self.msg(channel, "< Congratulations to {} for being *ever* so popular".format(winner))
 
     def command_KNUKTATS(self, user, channel, msg, args, cmd, tags):
         self.msg(channel, "< Any two words on their own in an all-caps message will generate you some KNUK TATS")
@@ -654,6 +699,7 @@ class KnukTatsPage(Resource):
         print(request.args)
         text = request.args.get(b't', [b'KNUK TATS'])[0].decode()
         return knuxtats.generate_tats(text)       
+
 
 # ------ Method for OBS to call out to ---------
 
