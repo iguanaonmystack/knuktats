@@ -52,6 +52,12 @@ if os.path.exists('wotd_history.txt'):
             if line:
                 pastwotds.add(line)
 
+wronglayer_count = 0
+if os.path.exists('wronglayer.txt'):
+    with open('wronglayer.txt', 'a') as layerf:
+        for line in layerf:
+            wronglayer_count = int(line.strip())
+
 def ordinal(n):
     """Black magic from https://stackoverflow.com/a/20007730"""
     if 11 <= (n % 100) <= 13:
@@ -232,7 +238,7 @@ class KnuxIRCBot(irc.IRCClient):
     # callbacks for events
 
     def initial_query(self, l):
-        print(l)
+        self.logger.debug(l)
 
     def signedOn(self):
         """Called when bot has succesfully signed on to server."""
@@ -242,6 +248,8 @@ class KnuxIRCBot(irc.IRCClient):
     def joined(self, channel):
         """This will get called when the bot joins the channel."""
         self.logger.debug("joined %s" % self.factory.channel)
+        self.msg(channel, "< Hello, keeper")
+        #reactor.callLater(1000, self.on_etsy_reminder, self.factory.channel)
 
     def command(self, user, channel, msg, tags):
         """Handle a twitch-style !command.
@@ -305,6 +313,10 @@ class KnuxIRCBot(irc.IRCClient):
     def command_SOCIALS(self, user, channel, msg, args, cmd, tags):
         self.msg(channel, "< Stick @kapellosaur@stctp.zone into mastodon's search box or find me here https://speedlines.stctp.zone/@kapellosaur ; I'm also on these: https://tumblr.com/kapellosaur ; https://instagram.com/kapellosaur ; https://cara.app/kapellosaur")
 
+    def command_ETSY(self, user, channel, msg, args, cmd, tags):
+        self.msg(channel, "< Hey my art's for sale. Did you see? https://kapellosaur.etsy.com")
+    command_STORE = command_ETSY
+
     def command_LURK(self, user, channel, msg, args, cmd, tags):
         self.msg(channel, "< You are now lurking, unseen, in the shadows")
 
@@ -324,6 +336,18 @@ class KnuxIRCBot(irc.IRCClient):
         else:
             self.msg(channel, "< The word of the day is {}".format(self.wotd))
         return True
+
+    def command_WRONGLAYER(self, user, channel, msg, args, cmd, tags):
+        global wronglayer_count
+        wronglayer_count += 1
+        with open('wronglayer.txt', 'w') as layerf:
+            layerf.write(str(wronglayer_count))
+
+    def command_MORG(self, user, channel, msg, args, cmd, tags):
+        audio = choose_audio('horny')
+        self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
+        self.msg(channel, "< Check out MagicalMorg on bsky, https://speedlines.stctp.zone/@Morg on mastodon, or if you're feeling a bit spicy, NaughtyMorg on bsky, masto, and furaffinity.")
+    command_MORG.hidden = True
 
     def command_ADS(self, user, channel, msg, args, cmd, tags):
         self.msg(channel, "< Three minutes of adverts? Every hour? FOREVER?!")
@@ -350,6 +374,9 @@ class KnuxIRCBot(irc.IRCClient):
 
     def command_FART(self, user, channel, msg, args, cmd, tags):
         self.msg(channel, "< Over to you, keeper.")
+
+    def on_etsy_reminder(self, channel):
+        self.msg(channel, f"< Keeper, did you remember to hawk the kapellostore yet?")
 
     def on_reminder_time_done(self, user, channel, msg, args, cmd, tags):
         self.msg(channel, f"< reminder for @{user}: " + ' '.join(args[2:]))
