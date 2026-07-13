@@ -375,7 +375,7 @@ class KnuxIRCBot(irc.IRCClient):
     def command_WOTD(self, user, channel, msg, args, cmd, tags):
         guess = args[1] if len(args) > 1 else None
         if guess:
-            self.msg(channel, "< this is not the place to guess the word of the day")
+            self.msg(channel, "< This is not the place to guess the word of the day")
         elif not self.wotd:
             self.msg(channel, "< The word of the day hasn't been discovered yet. Keep trying and you might find it")
         else:
@@ -387,6 +387,7 @@ class KnuxIRCBot(irc.IRCClient):
         wronglayer_count += 1
         with open('wronglayer.txt', 'w') as layerf:
             layerf.write(str(wronglayer_count))
+        self.msg(channel, "< The keeper has drawn on the wrong layer {} times now. How careless of her.")
 
     def command_MORG(self, user, channel, msg, args, cmd, tags):
         audio = choose_audio('horny')
