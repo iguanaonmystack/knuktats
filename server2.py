@@ -389,6 +389,9 @@ class KnuxIRCBot(irc.IRCClient):
             layerf.write(str(wronglayer_count))
         self.msg(channel, "< The keeper has drawn on the wrong layer {} times now. How careless of her.")
 
+    def command_TONGUE(self, user, channel, msg, args, cmd, tags):
+        self.msg(channel, "< Keeper, stop chewing your damn tongue.")
+
     def command_MORG(self, user, channel, msg, args, cmd, tags):
         audio = choose_audio('horny')
         self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
