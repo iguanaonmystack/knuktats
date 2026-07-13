@@ -34,6 +34,7 @@ dictionary = set(nltk.corpus.words.words())
 
 import knuxtats
 import button
+import adventure
 import config_local
 
 dungeonsfx = 'html/dungeonsfx/'
