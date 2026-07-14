@@ -12,6 +12,9 @@ E = 1
 W = -1
 GridPos = int
 
+adjectives = ['cursed', 'beautiful', 'loathsome', 'wild', 'ornate', 'dark', 'bright', 'catalysing', 'L-shaped']
+room_nouns = ['library', 'aboretum', 'chamber', 'room', 'breakfast nook', 'throne room', 'latrine', 'cellar', 'sentry room', 'hall']
+
 class Direction(Enum):
     NORTH = (0, N)
     SOUTH = (0, S)
@@ -44,6 +47,7 @@ class Room:
     """You are in a room."""
     x: GridPos
     y: GridPos
+    id: int
     name: str
     description: str
     exits: dict[Direction, Exit] = field(default_factory=dict, repr=False)
@@ -54,9 +58,7 @@ class Player:
     name: str # twitch username
     location: Room
 
-room_count = 0 # DEBUG dev only; replace with random name generator
 def fractal_room_gen(parent_room, divider, threshold=1, depth=0):
-    global room_count
     print(' ' * depth + 'parent room:', parent_room)
     new_rooms = []
     while random.random() < threshold:
@@ -73,10 +75,17 @@ def fractal_room_gen(parent_room, divider, threshold=1, depth=0):
             room = existing_neighbour
             existing_neighbour.exits[direction.opposite()] = Exit(destination=room)
         else:
-            room = Room(xpos, ypos, name=f"Room {room_count}", description=f"Room {room_count} description", game=parent_room.game)
+            name = None
+            taken_names = [room.name for room in parent_room.game.rooms.values()]
+            while name is None or name in taken_names:
+                adj = random.choice(adjectives)
+                an = 'an' if adj[0] in 'aeiouL' else 'a'
+                name = ' '.join((random.choice(('the', an)), adj, random.choice(room_nouns)))
+            room = Room(xpos, ypos, name=name, id=len(parent_room.game.rooms),
+                        description=f"You're in a room",
+                        game=parent_room.game)
             room.game.rooms[(xpos, ypos)] = room
             new_rooms.append(room)
-            room_count += 1
             room.exits[direction.opposite()] = Exit(destination=parent_room)
             parent_room.exits[direction] = Exit(destination=room)
 
@@ -94,10 +103,8 @@ class Adventure:
         self.players = list()
 
     def random(self):
-        room = Room(0, 0, name="Grand Hall", description="A hall designed for large functions, with pillars spaced throughout holding up a ceiling that seems to reach nearly into the clouds.", game=self)
+        room = Room(0, 0, name="Grand Hall", id=0, description="You're in a room", game=self)
         self.rooms[(0, 0)] = room
-        global room_count
-        room_count += 1
         fractal_room_gen(room, 1.1)
 
 game = Adventure()
