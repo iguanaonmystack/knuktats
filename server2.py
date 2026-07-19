@@ -57,7 +57,7 @@ if os.path.exists('wotd_history.txt'):
 
 wronglayer_count = 0
 if os.path.exists('wronglayer.txt'):
-    with open('wronglayer.txt', 'a') as layerf:
+    with open('wronglayer.txt', 'r') as layerf:
         for line in layerf:
             wronglayer_count = int(line.strip())
 
@@ -388,7 +388,8 @@ class KnuxIRCBot(irc.IRCClient):
         wronglayer_count += 1
         with open('wronglayer.txt', 'w') as layerf:
             layerf.write(str(wronglayer_count))
-        self.msg(channel, "< The keeper has drawn on the wrong layer {} times now. How careless of her.")
+        self.msg(channel, "< The keeper has drawn on the wrong layer {} times now. How careless of her.".format(wronglayer_count))
+    command_LAYER = command_WRONGLAYER
 
     def command_TONGUE(self, user, channel, msg, args, cmd, tags):
         self.msg(channel, "< Keeper, stop chewing your damn tongue.")

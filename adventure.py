@@ -77,6 +77,7 @@ def fractal_room_gen(parent_room, divider, threshold=1, depth=0):
         else:
             name = None
             taken_names = [room.name for room in parent_room.game.rooms.values()]
+            # TODO - what if there are more rooms than possible combinations?
             while name is None or name in taken_names:
                 adj = random.choice(adjectives)
                 an = 'an' if adj[0] in 'aeiouL' else 'a'
