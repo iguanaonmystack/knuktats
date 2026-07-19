@@ -1,5 +1,6 @@
 """A little text-based adventure, as a treat"""
 
+import types
 import random
 
 from enum import Enum
@@ -53,10 +54,38 @@ class Room:
     exits: dict[Direction, Exit] = field(default_factory=dict, repr=False)
     game: TypeAlias = 'Adventure'
 
+class NoPlayerError(Exception):
+    """Raised if there is no active player for the user who is trying to play."""
+
 @dataclass
 class Player:
     name: str # twitch username
     location: Room
+    reply: types.FunctionType
+    reply_all: types.FunctionType
+    game: TypeAlias = 'Adventure'
+
+    def cmd(self, args):
+        "Command parser"
+        cmd = args[0].upper()
+        fn = None
+        try:
+            fn = getattr(self, 'cmd_' + cmd)
+        except AttributeError:
+            self.reply("< what is '{}'?".format(cmd))
+        if fn:
+            return fn(args[0], args[1:])
+
+    def cmd_QUIT(self, cmd, args):
+        self.reply("< you may not quit")
+
+    def cmd_LOOK(self, cmd, args):
+        exits = ', '.join([ex.name for ex in self.location.exits.keys()])
+        players = ', '.join([player.name for player in self.game.players.values() if player.location == self.location and player != self])
+        self.reply("< You are in {}. {}. Exits are {}.".format(self.location.name, self.location.description, exits))
+        if players:
+            self.reply("< Oh, look. {} is here.".format(players))
+
 
 def fractal_room_gen(parent_room, divider, threshold=1, depth=0):
     print(' ' * depth + 'parent room:', parent_room)
@@ -83,7 +112,7 @@ def fractal_room_gen(parent_room, divider, threshold=1, depth=0):
                 an = 'an' if adj[0] in 'aeiouL' else 'a'
                 name = ' '.join((random.choice(('the', an)), adj, random.choice(room_nouns)))
             room = Room(xpos, ypos, name=name, id=len(parent_room.game.rooms),
-                        description=f"You're in a room",
+                        description=f"It sure is a location on this map",
                         game=parent_room.game)
             room.game.rooms[(xpos, ypos)] = room
             new_rooms.append(room)
@@ -101,12 +130,24 @@ def fractal_room_gen(parent_room, divider, threshold=1, depth=0):
 class Adventure:
     def __init__(self):
         self.rooms : dict[(GridPos, GridPos), Room] = dict()
-        self.players = list()
+        self.start_room: Room = None
+        self.players: dict[str, Player] = dict()
 
     def random(self):
-        room = Room(0, 0, name="Grand Hall", id=0, description="You're in a room", game=self)
-        self.rooms[(0, 0)] = room
-        fractal_room_gen(room, 1.1)
+        self.start_room = Room(0, 0, name="the Grand Hall", id=0, description="The starting room", game=self)
+        self.rooms[(0, 0)] = self.start_room
+        fractal_room_gen(self.start_room, 1.1)
+
+    def add_player(self, username, reply_func, reply_all_func):
+        player = Player(username, self.start_room, reply_func, reply_all_func, self)
+        self.players[username] = player
+        player.reply('< You have entered the dungeon')
+
+    def player(self, username):
+        """Get player"""
+        if username not in self.players:
+            raise NoPlayerError()
+        return self.players[username]
 
 game = Adventure()
 game.random()

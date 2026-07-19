@@ -457,6 +457,23 @@ class KnuxIRCBot(irc.IRCClient):
         else:
             self.msg(channel, "< reminder usage: TIME[s|m|h] reminder message")
 
+    def command_DUNGEON(self, user, channel, msg, args, cmd, tags):
+        print("DUNGEON command", args)
+        args = args[1:]
+        if not args:
+            self.msg(channel, "< dungeon usage: !dungeon cmd [params]. eg: !d n; !d get flask")
+            return
+        try:
+            player = adventure.game.player(user)
+            print(player)
+        except adventure.NoPlayerError:
+            self.msg(channel, "< NoPlayerError")
+        else:
+            print('sending player cmd', args, player)
+            player.cmd(args)
+
+    command_D = command_DUNGEON
+
     def command_COMMANDS(self, user, channel, msg, args, cmd, tags):
         commands = set()
         for methodname in dir(self):
@@ -545,11 +562,17 @@ class KnuxIRCBot(irc.IRCClient):
                     print('... but not more than a minute ago')
 
         # Welcome audio for first-of-the-session chatters
-        if user != "kapellosaur" and user != "nightbot" and user not in self.seen_users:
+        if user != "akapellosaur" and user != "nightbot" and user not in self.seen_users:
             print('finding audio for new joiner ' + user)
             self.seen_users.add(user)
             audio = choose_audio(user, 'new-chatter')
             self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
+
+            def reply(msg): # unused until I get kapellodon sorted out
+                return self.msg(user, msg)
+            def reply_all(msg):
+                return self.msg(channel, msg)
+            adventure.game.add_player(user, reply_all, reply_all)
 
         # Word of the day
         # each word has a 1/250 chance of being the word of the day
