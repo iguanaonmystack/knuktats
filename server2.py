@@ -467,8 +467,13 @@ class KnuxIRCBot(irc.IRCClient):
             player = adventure.game.player(user)
             print(player)
         except adventure.NoPlayerError:
-            self.msg(channel, "< NoPlayerError")
-        else:
+            def reply(msg): # unused until I get kapellodon sorted out
+                return self.msg(user, msg)
+            def reply_all(msg):
+                return self.msg(channel, msg)
+            player = adventure.game.add_player(user, reply_all, reply_all)
+            print('new player', player)
+        finally:
             print('sending player cmd', args, player)
             player.cmd(args)
 
@@ -567,12 +572,6 @@ class KnuxIRCBot(irc.IRCClient):
             self.seen_users.add(user)
             audio = choose_audio(user, 'new-chatter')
             self.factory.knuxfactory.broadcast("DUNGEON MASTER: " + audio)
-
-            def reply(msg): # unused until I get kapellodon sorted out
-                return self.msg(user, msg)
-            def reply_all(msg):
-                return self.msg(channel, msg)
-            adventure.game.add_player(user, reply_all, reply_all)
 
         # Word of the day
         # each word has a 1/250 chance of being the word of the day

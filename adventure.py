@@ -40,7 +40,7 @@ class Object:
 @dataclass
 class Exit:
     requirement: Optional[Object] = None
-    locked: bool = True
+    locked: bool = False
     destination: TypeAlias = 'Room'
 
 @dataclass
@@ -85,6 +85,40 @@ class Player:
         self.reply("< You are in {}. {}. Exits are {}.".format(self.location.name, self.location.description, exits))
         if players:
             self.reply("< Oh, look. {} is here.".format(players))
+    cmd_L = cmd_LOOK
+
+    def cmd_NORTH(self, cmd, args):
+        if Direction.NORTH in self.location.exits:
+            return self._attempt_move(self.location.exits[Direction.NORTH])
+        self.reply("< There is no exit in that direction.")
+    cmd_N = cmd_NORTH
+
+    def cmd_SOUTH(self, cmd, args):
+        if Direction.SOUTH in self.location.exits:
+            return self._attempt_move(self.location.exits[Direction.SOUTH])
+        self.reply("< There is no exit in that direction.")
+    cmd_S = cmd_SOUTH
+
+    def cmd_EAST(self, cmd, args):
+        if Direction.EAST in self.location.exits:
+            return self._attempt_move(self.location.exits[Direction.EAST])
+        self.reply("< There is no exit in that direction.")
+    cmd_E = cmd_EAST
+
+    def cmd_WEST(self, cmd, args):
+        if Direction.WEST in self.location.exits:
+            return self._attempt_move(self.location.exits[Direction.WEST])
+        self.reply("< There is no exit in that direction.")
+    cmd_W = cmd_WEST
+
+    def _attempt_move(self, exit_):
+        if exit_.requirement:
+            pass # TODO - check requirement object is in our inventory; unlock the door if so
+        if exit_.locked:
+            self.reply("< This exit is locked; you need {}".format(exit_.requirement.name))
+            return
+        self.location = exit_.destination
+        self.cmd_LOOK('look', [])
 
 
 def fractal_room_gen(parent_room, divider, threshold=1, depth=0):
@@ -142,6 +176,7 @@ class Adventure:
         player = Player(username, self.start_room, reply_func, reply_all_func, self)
         self.players[username] = player
         player.reply('< You have entered the dungeon')
+        return player
 
     def player(self, username):
         """Get player"""
