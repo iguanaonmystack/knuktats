@@ -82,9 +82,9 @@ class Player:
     def cmd_LOOK(self, cmd, args):
         exits = ', '.join([ex.name for ex in self.location.exits.keys()])
         players = ', '.join([player.name for player in self.game.players.values() if player.location == self.location and player != self])
-        self.reply("< You are in {}. {}. Exits are {}.".format(self.location.name, self.location.description, exits))
+        self.reply("< You ({}) are in {}. {}. Exits are {}.".format(self.location.name, player.name self.location.description, exits))
         if players:
-            self.reply("< Oh, look. {} is here.".format(players))
+            self.reply("< Oh, look. {} is here too.".format(players))
     cmd_L = cmd_LOOK
 
     def cmd_NORTH(self, cmd, args):
@@ -136,7 +136,7 @@ def fractal_room_gen(parent_room, divider, threshold=1, depth=0):
             # connect the two rooms
             print(' '* depth, f"Connect existing room {existing_neighbour} at {xpos}, {ypos}")
             room = existing_neighbour
-            existing_neighbour.exits[direction.opposite()] = Exit(destination=room)
+            existing_neighbour.exits[direction.opposite()] = Exit(destination=parent_room)
         else:
             name = None
             taken_names = [room.name for room in parent_room.game.rooms.values()]
@@ -170,7 +170,7 @@ class Adventure:
     def random(self):
         self.start_room = Room(0, 0, name="the Grand Hall", id=0, description="The starting room", game=self)
         self.rooms[(0, 0)] = self.start_room
-        fractal_room_gen(self.start_room, 1.1)
+        fractal_room_gen(self.start_room, 1.17)
 
     def add_player(self, username, reply_func, reply_all_func):
         player = Player(username, self.start_room, reply_func, reply_all_func, self)
@@ -186,3 +186,13 @@ class Adventure:
 
 game = Adventure()
 game.random()
+
+
+if __name__ == "__main__":
+    for loc, room in game.rooms.items():
+        print(loc, room)
+        for direction, exit_ in room.exits.items():
+            print(direction.value, exit_)
+            assert room.x + direction.value[0] == exit_.destination.x
+            assert room.y + direction.value[1] == exit_.destination.y
+

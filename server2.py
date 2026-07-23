@@ -252,7 +252,7 @@ class KnuxIRCBot(irc.IRCClient):
     def joined(self, channel):
         """This will get called when the bot joins the channel."""
         self.logger.debug("joined %s" % self.factory.channel)
-        self.msg(channel, "< Hello, keeper")
+        self.msg(channel, "< Welcome to the dungeon. Today there are {} rooms.".format(len(adventure.game.rooms)))
         #reactor.callLater(1000, self.on_etsy_reminder, self.factory.channel)
 
     def command(self, user, channel, msg, tags):
@@ -461,7 +461,7 @@ class KnuxIRCBot(irc.IRCClient):
         print("DUNGEON command", args)
         args = args[1:]
         if not args:
-            self.msg(channel, "< dungeon usage: !dungeon cmd [params]. eg: !d n; !d get flask")
+            self.msg(channel, "< dungeon usage: !dungeon cmd [params]. recommended start: !d look")
             return
         try:
             player = adventure.game.player(user)
@@ -567,7 +567,7 @@ class KnuxIRCBot(irc.IRCClient):
                     print('... but not more than a minute ago')
 
         # Welcome audio for first-of-the-session chatters
-        if user != "akapellosaur" and user != "nightbot" and user not in self.seen_users:
+        if user != "kapellosaur" and user != "nightbot" and user not in self.seen_users:
             print('finding audio for new joiner ' + user)
             self.seen_users.add(user)
             audio = choose_audio(user, 'new-chatter')
