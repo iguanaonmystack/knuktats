@@ -82,7 +82,7 @@ class Player:
     def cmd_LOOK(self, cmd, args):
         exits = ', '.join([ex.name for ex in self.location.exits.keys()])
         players = ', '.join([player.name for player in self.game.players.values() if player.location == self.location and player != self])
-        self.reply("< You ({}) are in {}. {}. Exits are {}.".format(self.location.name, player.name self.location.description, exits))
+        self.reply("< You ({}) are in {}. {}. Exits are {}.".format(self.name, self.location.name, self.location.description, exits))
         if players:
             self.reply("< Oh, look. {} is here too.".format(players))
     cmd_L = cmd_LOOK

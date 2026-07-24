@@ -468,8 +468,10 @@ class KnuxIRCBot(irc.IRCClient):
             print(player)
         except adventure.NoPlayerError:
             def reply(msg): # unused until I get kapellodon sorted out
+                #time.sleep(1)
                 return self.msg(user, msg)
             def reply_all(msg):
+                #time.sleep(1)
                 return self.msg(channel, msg)
             player = adventure.game.add_player(user, reply_all, reply_all)
             print('new player', player)
@@ -567,7 +569,7 @@ class KnuxIRCBot(irc.IRCClient):
                     print('... but not more than a minute ago')
 
         # Welcome audio for first-of-the-session chatters
-        if user != "kapellosaur" and user != "nightbot" and user not in self.seen_users:
+        if user != "kapellodon" and user != "nightbot" and user not in self.seen_users:
             print('finding audio for new joiner ' + user)
             self.seen_users.add(user)
             audio = choose_audio(user, 'new-chatter')
@@ -588,7 +590,7 @@ class KnuxIRCBot(irc.IRCClient):
                 elif wordlow not in dictionary:
                     # the dictionary contains some capitalised proper nouns but we don't want those anyway
                     continue
-                elif user in ("kapellosaur", "nightbot"):
+                elif user in ("kapellodon", "nightbot"):
                     # This is here rather than earlier to make sure the words still get added to the list
                     continue
                 # eligible word:
@@ -638,6 +640,7 @@ class KnuxIRCBot(irc.IRCClient):
             # decode bytes from transport to unicode
             line = line.decode("utf-8")
 
+        print(line)
         line = irc.lowDequote(line)
         try:
             prefix, command, params, tags = parsemsg(line)
@@ -661,6 +664,7 @@ class KnuxIRCBot(irc.IRCClient):
     def twitch_USERNOTICE(self, prefix, params, tags):
         """A multipurpose command for various events in the stream."""
         # See https://dev.twitch.tv/docs/chat/irc/
+        print("NOTICE", prefix,params,tags)
         badges = {} # admin, bits, broadcaster, moderator, subscriber, staff, turbo
         displayname = None
         loginname = None
@@ -743,12 +747,81 @@ class OBSResourcePage(Resource):
         self.knuxfactory.broadcast("DUNGEON MASTER: " + 'unknown-event-1.ogg')
         return b'OK'
 
+# ----- Twitch authentication nonsense -----
+
+class TwitchRedirectURI(Resource):
+    isLeaf = True
+    def __init__(self, state, *args, **kw):
+        super().__init__(*args, **kw)
+        self.state = state
+
+    def render_GET(self, request):
+        print(request.args)
+        # {b'code': [b'i0dsz8y77d7iujgfzwx1f4sevhxugi'], b'scope': [b'user:read:chat user:write:chat user:bot'], b'state': [b'jgiewgjiewjoiew']}
+        auth_code = request.args[b'code'][0]
+        assert self.state == request.args[b'state'][0].decode()
+
+        payload = urllib.parse.urlencode([
+            ('client_id', config_local.client_id),
+            ('client_secret', config_local.client_secret),
+            ('code', auth_code),
+            ('grant_type', 'authorization_code'),
+            ('redirect_uri', 'http://localhost:9000/twitchredirect'),
+        ]).encode('utf-8')
+        resp = urllib.request.urlopen('https://id.twitch.tv/oauth2/token', data=payload)
+        data = resp.read()
+        print("*********")
+        print(data)
+        print('set irc_password to oauth:{access_token}')
+        print("*********")
+
+        return b'OK'
+
 
 # ------ Wiring ----------
 
 if __name__ == '__main__':
-
     log.startLogging(sys.stdout)
+
+    if len(sys.argv) > 1:
+        if sys.argv[1] == '--token':
+            import urllib.request, urllib.parse
+            # payload = urllib.parse.urlencode([
+            #     ('client_id', config_local.client_id),
+            #     ('client_secret', config_local.client_secret),
+            #     ('grant_type', 'client_credentials'),
+            # ]).encode('utf-8')
+            # resp = urllib.request.urlopen('https://id.twitch.tv/oauth2/token', data=payload)
+            # data = resp.read()
+            # print(data)
+            # print('set irc_password to oauth:{access_token}')
+
+            auth_url = 'https://id.twitch.tv/oauth2/authorize?'
+            state = 'jgiewgjiewjoiew' # TODO - generate random
+            # probably want more scopes (roles) in the future:
+            # https://dev.twitch.tv/docs/authentication/scopes/
+            parameters = urllib.parse.urlencode([
+                ('client_id', config_local.client_id),
+                ('force_verify', 'false'),
+                ('redirect_uri', 'http://localhost:9000/twitchredirect'),
+                ('response_type', 'code'),
+                ('scope', 'user:read:chat user:write:chat user:bot chat:edit chat:read'),
+                ('state', state),
+            ])
+            
+            print("*********")
+            print('go to the following URL in a browser logged in as kapelloDON')
+            print(auth_url + parameters)
+            print("*********")
+
+            resource4 = TwitchRedirectURI(state=state)
+            root = File(b"html")
+            root.putChild(b"twitchredirect", resource4)
+            site = Site(root)
+            reactor.listenTCP(9000, site)
+            reactor.run()
+
+            sys.exit()
 
     knuxfactory = KnuxWebSocketServerFactory()
     knuxfactory.protocol = BroadcastServerProtocol
