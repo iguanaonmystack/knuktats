@@ -587,6 +587,8 @@ class KnuxIRCBot(irc.IRCClient):
                     continue
                 elif wordlow in self.words:
                     continue
+                elif wordlow in pastwotds:
+                    continue
                 elif wordlow not in dictionary:
                     # the dictionary contains some capitalised proper nouns but we don't want those anyway
                     continue
