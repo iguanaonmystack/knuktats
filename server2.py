@@ -61,6 +61,12 @@ if os.path.exists('wronglayer.txt'):
         for line in layerf:
             wronglayer_count = int(line.strip())
 
+hotdentist_count = 0
+if os.path.exists('hotdentist.txt'):
+    with open('hotdentist.txt', 'r') as layerf:
+        for line in layerf:
+            hotdentist_count = int(line.strip())
+
 def ordinal(n):
     """Black magic from https://stackoverflow.com/a/20007730"""
     if 11 <= (n % 100) <= 13:
@@ -346,6 +352,8 @@ class KnuxIRCBot(irc.IRCClient):
             self.msg(channel, "{} points: {}".format(count, recipient))
         if winner:
             self.msg(channel, "< Congratulations to {} for being *ever* so popular".format(winner))
+        else:
+            self.msg(channel, "< Nobody has any points. How disappointing. !point to award a point.")
 
     def command_KNUKTATS(self, user, channel, msg, args, cmd, tags):
         self.msg(channel, "< Any two words on their own in an all-caps message will generate you some KNUK TATS")
@@ -390,6 +398,14 @@ class KnuxIRCBot(irc.IRCClient):
             layerf.write(str(wronglayer_count))
         self.msg(channel, "< The keeper has drawn on the wrong layer {} times now. How careless of her.".format(wronglayer_count))
     command_LAYER = command_WRONGLAYER
+
+    def command_HOTDENTIST(self, user, channel, msg, args, cmd, tags):
+        global hotdentist_count
+        hotdentist_count += 1
+        with open('hotdentist.txt', 'w') as layerf:
+            layerf.write(str(hotdentist_count))
+        self.msg(channel, "< Jack just can't stop thinking about his hot dentist, I must announce for the {} time.".format(ordinal(hotdentist_count)))
+    command_DENTIST = command_HOTDENTIST
 
     def command_TONGUE(self, user, channel, msg, args, cmd, tags):
         self.msg(channel, "< Keeper, stop chewing your damn tongue.")
@@ -569,7 +585,7 @@ class KnuxIRCBot(irc.IRCClient):
                     print('... but not more than a minute ago')
 
         # Welcome audio for first-of-the-session chatters
-        if user != "kapellodon" and user != "nightbot" and user not in self.seen_users:
+        if user != "kapellodon" and user != "kapellosaur" and user != "nightbot" and user not in self.seen_users:
             print('finding audio for new joiner ' + user)
             self.seen_users.add(user)
             audio = choose_audio(user, 'new-chatter')
@@ -812,8 +828,8 @@ if __name__ == '__main__':
             ])
             
             print("*********")
-            print('go to the following URL in a browser logged in as kapelloDON')
-            print(auth_url + parameters)
+            print('go to the following URL in a browser logged in as kapelloDON:\n'
+            , auth_url + parameters, '***')
             print("*********")
 
             resource4 = TwitchRedirectURI(state=state)
