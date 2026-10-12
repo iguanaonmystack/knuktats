@@ -37,6 +37,8 @@ import button
 import adventure
 import config_local
 
+chatlog = open('chatlog.txt', 'a')
+
 dungeonsfx = 'html/dungeonsfx/'
 
 badwords = set()
@@ -510,6 +512,7 @@ class KnuxIRCBot(irc.IRCClient):
         """This will get called when the bot receives a message."""
         user = user.split('!', 1)[0]
         self.logger.debug("<%s> %s" % (user, msg))
+        print("%s <%s> %s" % (datetime.datetime.now().strftime('%Y%m%d %H:%M:%S'), user, msg), file=chatlog)
         
         # Check to see if they're sending a private message
         if channel == self.nickname:
@@ -545,6 +548,7 @@ class KnuxIRCBot(irc.IRCClient):
         """This will get called when the bot sees someone do an action."""
         user = user.split('!', 1)[0]
         self.logger.debug("* %s %s" % (user, msg))
+        print("%s * %s %s" % (datetime.datetime.now().strftime('%Y%m%d %H:%M:%S'), user, msg), file=chatlog)
         self.privmsg_action_common(user, channel, msg)
 
     def privmsg_action_common(self, user, channel, msg):
