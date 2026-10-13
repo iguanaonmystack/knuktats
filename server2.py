@@ -118,24 +118,29 @@ def parsemsg(s):
 
 
 def should_tat(msg):
-    """Return True if words are suitable (and desirable) for knuk tats.
+    """Return msg (sometimes altered) if words are suitable (and desirable) for knuk tats.
 
     msg - a line of chat (str)
     """
+    if msg.startswith('kapell3Knuk'):
+        msg = msg[len('kapell3Knuk'):]
+    if msg.endswith('kapell3Tats'):
+        msg = msg[:-len('kapell3Tats')]
+    msg = msg.strip()
     words = msg.split(" ")
     if len(words) != 2:
-        return False
+        return None
     if len(words[0]) != 4 or len(words[1]) != 4:
-        return False
+        return None
     for word in words:
         if not word.isalnum():
-            return False
-    return True # temporary thing to generate some accidental tats
+            return None
+    return msg # temporary thing to generate some accidental tats
     # Can't just check word.isupper() because '1234'.isupper() is false
     for letter in words[0] + words[1]:
         if letter.islower():
-            return False
-    return True
+            return None
+    return msg
 
 def choose_audio(prefix, fallback_prefix=None):
     """Pick an audio file to tell the dungeon master to play.
@@ -524,10 +529,11 @@ class KnuxIRCBot(irc.IRCClient):
                 return
 
         # Otherwise check to see if it is a message is KNUK TATS
-        if should_tat(msg):
+        if tat_msg := should_tat(msg):
             self.logger.debug("<%s> %s" % (self.nickname, msg))
+            self.logger.debug("tat msg: %r" % (tat_msg,))
             #self.msg(channel, "KNUK TATS")
-            self.factory.knuxfactory.broadcast("KNUK TATS: " + msg)
+            self.factory.knuxfactory.broadcast("KNUK TATS: " + tat_msg)
 
         self.privmsg_action_common(user, channel, msg)
 
@@ -573,6 +579,8 @@ class KnuxIRCBot(irc.IRCClient):
             ('perfect', 'performance-perfect', False),
             ('nowhere', 'nowhere-to-go', False),
             ('pretty nice', 'pretty-nice', False),
+            ('mormon', 'mormon-jesus', False),
+            ('jesus', 'mormon-jesus', False),
         ):
             # whether the DM is saying it or if it's just a sound clip
             prefix = 'DUNGEON MASTER: ' if dm else 'SFX: '
