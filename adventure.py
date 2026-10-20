@@ -1,7 +1,7 @@
 """A little text-based adventure, as a treat"""
 
 import types
-import random
+import random as _random
 
 from enum import Enum
 from dataclasses import dataclass, field
@@ -121,7 +121,7 @@ class Player:
         self.cmd_LOOK('look', [])
 
 
-def fractal_room_gen(parent_room, divider, threshold=1, depth=0):
+def fractal_room_gen(parent_room, divider, random, threshold=1, depth=0):
     print(' ' * depth + 'parent room:', parent_room)
     new_rooms = []
     while random.random() < threshold:
@@ -159,18 +159,22 @@ def fractal_room_gen(parent_room, divider, threshold=1, depth=0):
     # generate children for this generation of rooms at the end rather than as-we-go
     # (traditionally recursive), which leads to a (still skewed, but) less linear map.
     for room in new_rooms:
-        fractal_room_gen(room, divider, threshold=threshold, depth=depth+1)
+        fractal_room_gen(room, divider, random, threshold=threshold, depth=depth+1)
 
 class Adventure:
-    def __init__(self):
+    def __init__(self, random_seed=None):
         self.rooms : dict[(GridPos, GridPos), Room] = dict()
         self.start_room: Room = None
         self.players: dict[str, Player] = dict()
+        if random_seed is None:
+            random_seed = _random.random()
+        print("Random seed for Adventure is", random_seed)
+        self._random = _random.Random(random_seed)
 
     def random(self):
         self.start_room = Room(0, 0, name="the Grand Hall", id=0, description="The starting room", game=self)
         self.rooms[(0, 0)] = self.start_room
-        fractal_room_gen(self.start_room, 1.17)
+        fractal_room_gen(self.start_room, 1.17, random=self._random)
 
     def add_player(self, username, reply_func, reply_all_func):
         player = Player(username, self.start_room, reply_func, reply_all_func, self)
