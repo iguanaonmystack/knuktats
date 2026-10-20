@@ -101,21 +101,34 @@
             var video = document.createElement("video");
             video.height = 300;
             video.width = 400;
-            video.src = "Faust.webm";
+            video.src = text;
 
-            var maindiv = document.getElementById('main');
-            maindiv.replaceChildren(video);
-
-            video.addEventListener("ended", (event) => {
-              console.log(
-                "Video stopped either because it has finished playing or no further data is available.",
-              );
-              maindiv.replaceChildren();
+            video.addEventListener('ended', function() {
+                console.log(
+                    "Video stopped either because it has finished playing or no further data is available.",
+                );
+                maindiv.replaceChildren();
+                console.log('video ended; unlocking lock');
+                mutex.unlock();
+                console.log('video unlocked');
+            });
+            video.addEventListener('error', function() {
+                console.log(
+                    "Video errored.",
+                );
+                maindiv.replaceChildren();
+                console.log('video error; unlocking lock');
+                mutex.unlock();
+                console.log('video unlocked');
             });
 
             video.addEventListener("canplaythrough", async (event) => {
                 /* the audio is now playable; play it if permissions allow */
-                console.log('video is playable');
+                console.log('awaiting video lock');
+                await mutex.lock();
+                console.log('video lock aquired');
+                var maindiv = document.getElementById('main');
+                maindiv.replaceChildren(video);
                 var promise = video.play();
                 if (promise !== undefined) {
                   promise.then(_ => {
@@ -123,7 +136,9 @@
                   }).catch(error => {
                     // Autoplay was prevented.
                     /* when user hasn't interacted yet; not a problem in OBS */
-                    console.log('notallowederror');
+                    console.log('notallowederror; unlocking video lock');
+                    mutex.unlock();
+                    console.log('video unlocked');
                   });
                 }
             });

@@ -297,12 +297,16 @@ class KnuxIRCBot(irc.IRCClient):
 
     def command_FAUST(self, user, channel, msg, args, cmd, tags):
         if not self.faust:
-            self.factory.knuxfactory.broadcast("FAUST: start")
+            self.factory.knuxfactory.broadcast("FAUST: Faust.webm")
             self.msg(channel, "< Oh now you've done it! {} is Faust in chat!".format(user))
             self.faust = user
         else:
             self.msg(channel, "< {} is Faust in chat for today".format(user))
     command_FAUST.hidden = True
+
+    def command_SMILE(self, user, channel, msg, args, cmd, tags):
+        self.factory.knuxfactory.broadcast("FAUST: smile-with-your-eyes.mp4")
+        self.msg(channel, "< I heard people like it when you smile with your eyes".format(user))
 
     def command_HORNY(self, user, channel, msg, args, cmd, tags):
         user = args[1] if len(args) > 1 else user
