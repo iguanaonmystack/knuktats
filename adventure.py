@@ -167,7 +167,8 @@ class Adventure:
         self.start_room: Room = None
         self.players: dict[str, Player] = dict()
         if random_seed is None:
-            random_seed = _random.random()
+            random_seed = _random.randint(1, 100000)
+        self.random_seed = random_seed
         print("Random seed for Adventure is", random_seed)
         self._random = _random.Random(random_seed)
 

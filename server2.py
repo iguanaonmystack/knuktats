@@ -265,7 +265,7 @@ class KnuxIRCBot(irc.IRCClient):
     def joined(self, channel):
         """This will get called when the bot joins the channel."""
         self.logger.debug("joined %s" % self.factory.channel)
-        self.msg(channel, "< Welcome to the dungeon. Today there are {} rooms.".format(len(adventure.game.rooms)))
+        self.msg(channel, "< Welcome to Dungeon {}. Today there are {} rooms.".format(repr(adventure.game.random_seed), len(adventure.game.rooms)))
         #reactor.callLater(1000, self.on_etsy_reminder, self.factory.channel)
 
     def command(self, user, channel, msg, tags):
