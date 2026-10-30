@@ -3,6 +3,7 @@ import re
 import sys
 import glob
 import time
+import json
 import random
 import logging
 import operator
@@ -338,9 +339,10 @@ class KnuxIRCBot(irc.IRCClient):
         recipient = args[1]
         if recipient.startswith("@"):
             recipient = recipient[1:]
+        recipient = recipient.lower()
         reason = " ".join(args[2:])
-        if user == recipient:
-            self.msg(channel, "< You cannot award points to yourself")
+        if user.lower() == recipient:
+            self.msg(channel, "< You cannot award points to yourself. Unless you're Jack the one time he broke it.")
             return
         self.msg(channel, "< {} gave a point to {}, adding '{}'".format(user, recipient, reason))
         dbpool.runQuery("INSERT INTO points (user, recipient, reason) values (?, ?, ?)", (user, recipient, reason)).addCallback(self.on_point_add_query)
@@ -783,6 +785,41 @@ class OBSResourcePage(Resource):
 
 # ----- Twitch authentication nonsense -----
 
+def setup_twitch_refresh_token_loop():
+    now = datetime.datetime.now()
+    if now > config_local.token_data['expires_time']:
+        # already expired.
+        timeout = 0
+    else:
+        timeout = (config_local.token_data['expires_time'] - now).seconds
+    print('twitch timeout in %s seconds' % timeout)
+    reactor.callLater(timeout, refresh_twitch_token)
+
+def refresh_twitch_token():
+    # TODO - this duplicates most of the code from the --token handling, refactor.
+    payload = urllib.parse.urlencode([
+        ('client_id', config_local.client_id),
+        ('client_secret', config_local.client_secret),
+        ('grant_type', 'refresh_token'),
+        ('refresh_token', config_local.token_data['refresh_token']),
+    ]).encode('utf-8')
+    resp = urllib.request.urlopen('https://id.twitch.tv/oauth2/token', data=payload)
+    data = resp.read()
+    # {
+    #  "access_token": "1ssjqsqfy6bads1ws7m03gras79zfr",
+    #  "expires_in": 15583,
+    #  "refresh_token": "eyJfMzUtNDU0OC4MWYwLTQ5MDY5ODY4NGNlMSJ9%asdfasdf=",
+    #  "scope": [ "channel:read:subscriptions", "channel:manage:polls" ],
+    #  "token_type": "bearer"
+    #}
+    data = json.loads(data.decode('utf-8'))
+    expires_time = (datetime.datetime.now() - datetime.timedelta(seconds=10) + datetime.timedelta(seconds=data['expires_in'])).isoformat()
+    data['expires_time'] = expires_time
+    with open('token.json', 'w') as f:
+        json.dump(data, f)
+    config_local.token_data = data
+    setup_twitch_refresh_token_loop()
+
 class TwitchRedirectURI(Resource):
     isLeaf = True
     def __init__(self, state, *args, **kw):
@@ -805,11 +842,16 @@ class TwitchRedirectURI(Resource):
         resp = urllib.request.urlopen('https://id.twitch.tv/oauth2/token', data=payload)
         data = resp.read()
         print("*********")
-        print(data)
+        print(data) # b'{"access_token":"fjejewio","expires_in":15651,"refresh_token":"fegewjio","scope":["chat:edit","chat:read","user:bot","user:read:chat","user:write:chat"],"token_type":"bearer"}\n'
         print('set irc_password to oauth:{access_token}')
         print("*********")
+        data = json.loads(data.decode('utf-8'))
+        expires_time = (datetime.datetime.now() - datetime.timedelta(seconds=10) + datetime.timedelta(seconds=data['expires_in'])).isoformat()
+        data['expires_time'] = expires_time
+        with open('token.json', 'w') as f:
+            json.dump(data, f)
 
-        return b'OK'
+        return ("Expires %s" % expires_time).encode('utf-8')
 
 
 # ------ Wiring ----------
@@ -885,5 +927,9 @@ if __name__ == '__main__':
     button = button.setup(reactor, knuxfactory)
 
     reactor.addSystemEventTrigger('before', 'shutdown', lambda: dbpool.close())
+    
+    # Set up the twitch refresh token loop:
+    setup_twitch_refresh_token_loop()
 
+    # start the main loop:
     reactor.run()
