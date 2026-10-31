@@ -4,11 +4,13 @@ import sys
 import glob
 import time
 import json
+import copy
 import random
 import logging
 import operator
 import datetime
 import collections
+import urllib.request, urllib.parse
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -813,11 +815,15 @@ def refresh_twitch_token():
     #  "token_type": "bearer"
     #}
     data = json.loads(data.decode('utf-8'))
-    expires_time = (datetime.datetime.now() - datetime.timedelta(seconds=10) + datetime.timedelta(seconds=data['expires_in'])).isoformat()
+    expires_time = (datetime.datetime.now() - datetime.timedelta(seconds=10) + datetime.timedelta(seconds=data['expires_in']))
     data['expires_time'] = expires_time
+    config_local.token_data = data
+
+    data = copy.copy(data)
+    data['expires_time'] = data['expires_time'].isoformat()
     with open('token.json', 'w') as f:
         json.dump(data, f)
-    config_local.token_data = data
+
     setup_twitch_refresh_token_loop()
 
 class TwitchRedirectURI(Resource):
@@ -861,7 +867,6 @@ if __name__ == '__main__':
 
     if len(sys.argv) > 1:
         if sys.argv[1] == '--token':
-            import urllib.request, urllib.parse
             # payload = urllib.parse.urlencode([
             #     ('client_id', config_local.client_id),
             #     ('client_secret', config_local.client_secret),
