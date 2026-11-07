@@ -789,6 +789,7 @@ class OBSResourcePage(Resource):
 
 def setup_twitch_refresh_token_loop():
     now = datetime.datetime.now()
+    print(now, config_local.token_data['expires_time'])
     if now > config_local.token_data['expires_time']:
         # already expired.
         timeout = 0
@@ -886,7 +887,7 @@ if __name__ == '__main__':
                 ('force_verify', 'false'),
                 ('redirect_uri', 'http://localhost:9000/twitchredirect'),
                 ('response_type', 'code'),
-                ('scope', 'user:read:chat user:write:chat user:bot chat:edit chat:read'),
+                ('scope', 'user:read:chat user:write:chat user:bot chat:edit chat:read channel:bot'),
                 ('state', state),
             ])
             
