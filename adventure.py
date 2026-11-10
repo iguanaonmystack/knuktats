@@ -32,10 +32,20 @@ class Direction(Enum):
         elif self.name == 'WEST':
             return self.EAST
 
-@dataclass
+@dataclass(frozen=True)
 class Object:
     name: str
     description: str
+    definite: bool = False # whether to use the definite article
+    pauldron: bool = False # whether this is the winning item
+
+    def with_article(self):
+        if self.definite:
+            return 'the ' + self.name
+        article = 'a '
+        if self.name[0] in 'aeiou':
+            article = 'an '
+        return article + self.name
 
 @dataclass
 class Exit:
@@ -52,6 +62,7 @@ class Room:
     name: str
     description: str
     exits: dict[Direction, Exit] = field(default_factory=dict, repr=False)
+    items: set[Object] = field(default_factory=set, repr=False)
     game: TypeAlias = 'Adventure'
 
 class NoPlayerError(Exception):
@@ -63,6 +74,7 @@ class Player:
     location: Room
     reply: types.FunctionType
     reply_all: types.FunctionType
+    inventory: set[Object] = field(default_factory=set)
     game: TypeAlias = 'Adventure'
 
     def cmd(self, args):
@@ -79,14 +91,71 @@ class Player:
     def cmd_QUIT(self, cmd, args):
         self.reply("< you may not quit")
 
+    def _find_item(self, args, include_inventory=False):
+        print('looking for', args)
+        maybe_article = args[0]
+        if maybe_article in ('the', 'a', 'an', 'ye'):
+            args = args[1:]
+        if not args:
+            self.reply("< " + maybe_article + " WHAT?")
+        name = ' '.join(args).lower()
+        item = None
+        for item in self.location.items:
+            if item.name.lower() == name:
+                return item
+        if include_inventory:
+            for item in self.inventory:
+                if item.name.lower() == name:
+                    return item
+        return None
+
+    def cmd_INSPECT(self, cmd, args):
+        if not args:
+            self.reply("< What am I supposed to be looking at?")
+        item = self._find_item(args, include_inventory=True)
+        if item:
+            self.reply("< " + item.description + '.')
+            return
+        self.reply("< You see no such thing here.")
+
+    def cmd_GET(self, cmd, args):
+        print('cmd_GET', cmd, args)
+        if not args:
+            self.reply("< While I appreciate your enthusiasm, you do need to name the item to get")
+        item = self._find_item(args)
+        if not item:
+            if ' '.join(args) == 'ye flask':
+                self.reply("< You can't get ye flask")
+            else:
+                self.reply("< You see no such thing here.")
+            return
+        self.location.items.remove(item)
+        self.inventory.add(item)
+        self.reply_all("< {} has found {}".format(self.name, item.with_article()))
+        self.reply("< It's yours now.")
+        if item.pauldron:
+            self.reply_all("< {} has found {}. Congratulations, {}. You may award yourself the title of Liege, Lady, or Lord of the Dungeon. For today, at least.".format(self.name, item.name, self.name))
+    cmd_G = cmd_GET
+
+    def cmd_INVENTORY(self, cmd, args):
+        items = ", ".join(item.with_article() for item in self.inventory)
+        self.reply("< On your person you find " + items)
+    cmd_I = cmd_INVENTORY
+
     def cmd_LOOK(self, cmd, args):
+        print('cmd_LOOK', cmd, args)
+        if args:
+            return self.cmd_INSPECT(cmd, args)
         exits = ', '.join([ex.name for ex in self.location.exits.keys()])
         players = ', '.join([player.name for player in self.game.players.values() if player.location == self.location and player != self])
+        items = ', '.join(item.with_article() for item in self.location.items)
         self.reply("< You ({}) are in {}. {}. Exits are {}.".format(self.name, self.location.name, self.location.description, exits))
+        if self.location.items:
+            self.reply("< There is {} here".format(items))
         if players:
             self.reply("< Oh, look. {} is here too.".format(players))
     cmd_L = cmd_LOOK
-
+ 
     def cmd_NORTH(self, cmd, args):
         if Direction.NORTH in self.location.exits:
             return self._attempt_move(self.location.exits[Direction.NORTH])
@@ -119,9 +188,10 @@ class Player:
             return
         self.location = exit_.destination
         self.cmd_LOOK('look', [])
+       
 
 
-def fractal_room_gen(parent_room, divider, random, threshold=1, depth=0):
+def fractal_room_gen(parent_room, divider, random, threshold=1, depth=0, rooms=None):
     print(' ' * depth + 'parent room:', parent_room)
     new_rooms = []
     while random.random() < threshold:
@@ -149,6 +219,8 @@ def fractal_room_gen(parent_room, divider, random, threshold=1, depth=0):
                         description=f"It sure is a location on this map",
                         game=parent_room.game)
             room.game.rooms[(xpos, ypos)] = room
+            if rooms is not None:
+                rooms.append(room)
             new_rooms.append(room)
             room.exits[direction.opposite()] = Exit(destination=parent_room)
             parent_room.exits[direction] = Exit(destination=room)
@@ -159,7 +231,7 @@ def fractal_room_gen(parent_room, divider, random, threshold=1, depth=0):
     # generate children for this generation of rooms at the end rather than as-we-go
     # (traditionally recursive), which leads to a (still skewed, but) less linear map.
     for room in new_rooms:
-        fractal_room_gen(room, divider, random, threshold=threshold, depth=depth+1)
+        fractal_room_gen(room, divider, random, threshold=threshold, depth=depth+1, rooms=rooms)
 
 class Adventure:
     def __init__(self, random_seed=None):
@@ -175,10 +247,26 @@ class Adventure:
     def random(self):
         self.start_room = Room(0, 0, name="the Grand Hall", id=0, description="The starting room", game=self)
         self.rooms[(0, 0)] = self.start_room
-        fractal_room_gen(self.start_room, 1.17, random=self._random)
+        
+        # Generate the map
+        rooms = []
+        fractal_room_gen(self.start_room, 1.17, random=self._random, rooms=rooms)
+
+        # Generate the pauldron
+        pauldron = Object(name="Idocrase Pauldron", description="whosoever shoulders this pauldron shoulders the weight of the world", definite=True, pauldron=True)
+        rooms[-1].items.add(pauldron)
+        print("pauldron is in room {}".format(rooms[-1]))
 
     def add_player(self, username, reply_func, reply_all_func):
-        player = Player(username, self.start_room, reply_func, reply_all_func, self)
+        player = Player(username, self.start_room, reply_func, reply_all_func, game=self)
+        # use module random rather than map-generator random:
+        item = Object(**_random.choice([
+            dict(name='ball of lint', description='Fluff and dead skin'),
+            dict(name='spare button', description='You don\'t recall what this was for'),
+            dict(name='rusty nail', description="I'm sure that'll be useful for something"),
+            dict(name='handkerchief', description="Used"),
+        ]))
+        player.inventory.add(item)
         self.players[username] = player
         player.reply('< You have entered the dungeon')
         return player
